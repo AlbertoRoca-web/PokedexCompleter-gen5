@@ -1,8 +1,8 @@
 # PokedexCompleter Gen 5
 
-AI-assisted **Generation 5 catchable inventory completer** for Pokémon Black / White / Black 2 / White 2.
+AI-assisted **Generation 5 PC Living Dex completer** for Pokémon Black / White / Black 2 / White 2.
 
-The project goal is not to trust Pokédex caught/seen flags. Completed saves can have completed Pokédex data while the active PC boxes and party do not contain every target species as physical bodies. The source of truth is active save copy -> PC boxes + party -> physical species inventory.
+The project goal is not to trust Pokédex caught/seen flags. A completed Pokédex is just game flags. A Living Dex means physical Pokémon bodies living in the PC, with party optionally counted as currently owned. The source of truth is active save copy -> PC boxes + party -> physical species inventory.
 
 ## Core philosophy
 
@@ -89,6 +89,7 @@ Next step is migrating that prototype into this repo as a proper package.
 - [`docs/safety.md`](docs/safety.md)
 - [`docs/fixtures.md`](docs/fixtures.md)
 - [`docs/github-setup.md`](docs/github-setup.md)
+- [`docs/pc-living-dex.md`](docs/pc-living-dex.md)
 - [`docs/provider-health.md`](docs/provider-health.md)
 - [`docs/supabase.md`](docs/supabase.md)
 - [`docs/supabase-persistence.md`](docs/supabase-persistence.md)
@@ -106,6 +107,7 @@ Planned CLI examples:
 
 ```powershell
 rld inspect-save "D:\path\to\POKEMON W.sav" --game white
+rld pc-living-dex "D:\path\to\POKEMON W.sav" --game white --scope regional
 rld catchable-report "D:\path\to\POKEMON W.sav" --game white --mode direct
 rld report-living-dex "D:\path\to\POKEMON W.sav" --game white --format markdown
 rld report-living-dex "D:\path\to\POKEMON W.sav" --game white --format json

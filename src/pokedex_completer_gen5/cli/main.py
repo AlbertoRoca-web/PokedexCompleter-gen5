@@ -10,6 +10,7 @@ from pokedex_completer_gen5.agents.planner import plan_next_tasks
 from pokedex_completer_gen5.agents.providers.factory import create_planner_provider
 from pokedex_completer_gen5.backend.report_store import sha256_file, store_dex_report
 from pokedex_completer_gen5.dex.catchable_targets import build_catchable_inventory_report
+from pokedex_completer_gen5.dex.pc_living_dex import build_pc_living_dex_report
 from pokedex_completer_gen5.integrations.env import load_environment
 from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
 from pokedex_completer_gen5.saveio.gen5_save import build_save_output, build_save_payload, write_save_report
@@ -35,6 +36,20 @@ def inspect_save(
 ) -> None:
     """Read a Gen 5 save and print physical party/PC extraction plus planner status."""
     console.print(build_save_output(save_path, game, copy, "markdown"))
+
+
+@app.command("pc-living-dex")
+def pc_living_dex(
+    save_path: Path = typer.Argument(..., help="Path to Gen 5 save file."),
+    game: str = typer.Option("white", help="black, white, black2, or white2."),
+    copy: str = typer.Option("auto", help="auto, 0, or 1."),
+    scope: str = typer.Option("regional", help="regional now; national later."),
+    include_party: bool = typer.Option(True, help="Count party as currently owned alongside PC."),
+) -> None:
+    """Compare PC/party physical bodies against the regional PC Living Dex target."""
+    payload = build_save_payload(save_path, game, copy)
+    report = build_pc_living_dex_report(payload, game, scope=scope, include_party=include_party)
+    console.print_json(data=report.to_dict())
 
 
 @app.command("catchable-report")
