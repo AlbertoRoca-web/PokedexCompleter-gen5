@@ -19,7 +19,7 @@ def load_supabase_config(require_service_role: bool = False) -> SupabaseConfig:
         or os.getenv("SUPABASE_PUBLISHABLE_KEY")
         or os.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
     )
-    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SECRET_KEY")
 
     missing = []
     if not url:
@@ -27,7 +27,7 @@ def load_supabase_config(require_service_role: bool = False) -> SupabaseConfig:
     if not publishable_key:
         missing.append("SUPABASE_ANON_KEY or SUPABASE_PUBLISHABLE_KEY")
     if require_service_role and not service_role_key:
-        missing.append("SUPABASE_SERVICE_ROLE_KEY")
+        missing.append("SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY")
     if missing:
         raise RuntimeError("Missing Supabase environment variables: " + ", ".join(missing))
 
@@ -56,5 +56,5 @@ def create_supabase_client(use_service_role: bool = False) -> Any:
     config = load_supabase_config(require_service_role=use_service_role)
     key = config.service_role_key if use_service_role else config.publishable_key
     if key is None:
-        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is required for service-role client")
+        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY is required for service-role client")
     return create_client(config.url, key)

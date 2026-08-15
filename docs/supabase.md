@@ -26,6 +26,7 @@ SUPABASE_URL
 SUPABASE_ANON_KEY
 SUPABASE_PUBLISHABLE_KEY
 SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_SECRET_KEY
 ```
 
 The service-role key is powerful. Use it only in trusted server-side code or GitHub Actions jobs that require privileged access.
@@ -39,6 +40,7 @@ SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_SECRET_KEY=
 ```
 
 The Python helper also accepts Supabase's Next.js-style public names:
@@ -64,7 +66,7 @@ from pokedex_completer_gen5.backend.supabase_client import create_supabase_clien
 supabase = create_supabase_client()
 ```
 
-Create a service-role client only in trusted server-side contexts:
+Create a service-role client only in trusted server-side contexts. `SUPABASE_SECRET_KEY` is accepted as an alias for `SUPABASE_SERVICE_ROLE_KEY`:
 
 ```python
 supabase = create_supabase_client(use_service_role=True)

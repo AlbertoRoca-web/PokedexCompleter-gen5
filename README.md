@@ -84,6 +84,7 @@ Next step is migrating that prototype into this repo as a proper package.
 - [`docs/roadmap.md`](docs/roadmap.md)
 - [`docs/safety.md`](docs/safety.md)
 - [`docs/fixtures.md`](docs/fixtures.md)
+- [`docs/github-setup.md`](docs/github-setup.md)
 - [`docs/supabase.md`](docs/supabase.md)
 
 ## Development
