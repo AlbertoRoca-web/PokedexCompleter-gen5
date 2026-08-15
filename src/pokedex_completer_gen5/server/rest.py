@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel, ConfigDict, Field
 
 from pokedex_completer_gen5 import __version__
+from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
 from pokedex_completer_gen5.saveio.physical_report import build_save_payload, build_save_report
 
 app = FastAPI(title="PokedexCompleter Gen 5", version=__version__)
@@ -24,6 +25,11 @@ class SaveReportRequest(BaseModel):
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__}
+
+
+@app.get("/health/providers")
+def provider_health() -> dict[str, object]:
+    return provider_health_payload()
 
 
 @app.post("/inspect-save")

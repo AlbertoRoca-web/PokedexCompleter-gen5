@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
 from pokedex_completer_gen5.saveio.gen5_save import build_save_output, write_save_report
 
 app = typer.Typer(help="Generation 5 Living Dex completer.")
@@ -41,6 +42,12 @@ def report_living_dex(
     output_path, report = write_save_report(save_path, game, copy, output, format)
     console.print(report)
     console.print(f"[green]Report written to:[/green] {output_path}")
+
+
+@app.command("provider-health")
+def provider_health() -> None:
+    """Show which external provider environment variables are configured."""
+    console.print_json(data=provider_health_payload())
 
 
 @app.command()
