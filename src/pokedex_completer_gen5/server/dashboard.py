@@ -37,7 +37,15 @@ DASHBOARD_HTML = """<!doctype html>
   <section class="card">
     <h2>PC Living Dex Report</h2>
     <label for="savePath">Save path</label>
-    <input id="savePath" placeholder="D:\\alroc\\codepup\\rolo3\\POKEMON W.sav">
+    <input id="savePath" placeholder="Paste a full .sav path here, example: D:\\alroc\\codepup\\rolo3\\POKEMON W.sav">
+    <div class="button-row">
+      <button type="button" onclick="fillSavePath('D:\\alroc\\codepup\\rolo3\\POKEMON W.sav', 'white')">
+        Use White sample path
+      </button>
+      <button type="button" onclick="fillSavePath('D:\\alroc\\codepup\\POKEMON B2.sav', 'black2')">
+        Use Black 2 sample path
+      </button>
+    </div>
 
     <label for="game">Game</label>
     <select id="game">
@@ -120,8 +128,13 @@ DASHBOARD_HTML = """<!doctype html>
 async function runReport() {
   const error = document.getElementById('error');
   error.textContent = '';
+  const savePath = document.getElementById('savePath').value.trim();
+  if (!savePath) {
+    error.textContent = 'Paste or quick-fill a real .sav path first. Placeholder text is not a value.';
+    return;
+  }
   const payload = {
-    save_path: document.getElementById('savePath').value,
+    save_path: savePath,
     game: document.getElementById('game').value,
     copy: 'auto',
     scope: document.getElementById('scope').value,
@@ -162,6 +175,11 @@ function renderReport(data) {
     ].join('');
     rows.appendChild(row);
   }
+}
+
+function fillSavePath(path, game) {
+  document.getElementById('savePath').value = path;
+  document.getElementById('game').value = game;
 }
 
 async function emulatorState() {

@@ -93,6 +93,8 @@ def voice_config(mode: str = "off") -> dict[str, Any]:
 @app.post("/api/pc-living-dex")
 def pc_living_dex(request: PcLivingDexRequest) -> dict[str, object]:
     try:
+        if str(request.save_path).strip() in ("", "."):
+            raise HTTPException(status_code=400, detail="Save path is empty. Paste a full .sav path first.")
         payload = build_save_payload(request.save_path, request.game, request.requested_copy)
         return build_pc_living_dex_report(
             payload,

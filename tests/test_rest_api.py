@@ -27,6 +27,23 @@ def test_provider_health_endpoint() -> None:
     assert "providers" in response.json()
 
 
+def test_pc_living_dex_empty_save_returns_json_error() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/api/pc-living-dex",
+        json={
+            "save_path": "",
+            "game": "white",
+            "scope": "regional",
+            "target_policy": "game-regional",
+            "include_party": True,
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Save path is empty" in response.json()["detail"]
+
+
 def test_pc_living_dex_missing_save_returns_json_error() -> None:
     client = TestClient(app)
     response = client.post(
