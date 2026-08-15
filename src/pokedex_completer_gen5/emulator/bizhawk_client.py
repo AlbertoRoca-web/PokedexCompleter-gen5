@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import socket
 from dataclasses import dataclass
 from typing import Any
@@ -11,6 +12,14 @@ class BizHawkBridgeConfig:
     host: str = "127.0.0.1"
     port: int = 8765
     timeout_seconds: float = 5.0
+
+
+def bizhawk_config_from_env() -> BizHawkBridgeConfig:
+    return BizHawkBridgeConfig(
+        host=os.getenv("BIZHAWK_BRIDGE_HOST", "127.0.0.1"),
+        port=int(os.getenv("BIZHAWK_BRIDGE_PORT", "8765")),
+        timeout_seconds=float(os.getenv("BIZHAWK_BRIDGE_TIMEOUT_SECONDS", "5")),
+    )
 
 
 class BizHawkBridgeError(RuntimeError):

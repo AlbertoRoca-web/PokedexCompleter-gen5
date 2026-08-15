@@ -11,6 +11,7 @@ DASHBOARD_HTML = """<!doctype html>
     main { max-width: 1100px; margin: 0 auto; }
     .card { background: #1d2b36; border: 1px solid #344b5c; border-radius: 12px; padding: 1rem; margin: 1rem 0; }
     label { display: block; margin: .75rem 0 .25rem; font-weight: 650; }
+    .button-row { display: flex; flex-wrap: wrap; gap: .5rem; }
     input, select, button { font: inherit; border-radius: 8px; border: 1px solid #5d7487; padding: .55rem; }
     input, select { width: min(100%, 760px); background: #0f1720; color: #f7f7f7; }
     button { background: #68d391; color: #102018; font-weight: 700; cursor: pointer; margin-top: 1rem; }
@@ -52,10 +53,50 @@ DASHBOARD_HTML = """<!doctype html>
       <option value="national">National (pending)</option>
     </select>
 
+    <label for="targetPolicy">Target policy</label>
+    <select id="targetPolicy">
+      <option value="game-regional">Game regional: version-aware Unova living dex</option>
+      <option value="all-regional">All regional: every BW Unova dex entry</option>
+      <option value="catchable-only">Catchable only: direct in-game targets</option>
+    </select>
+
     <label><input id="includeParty" type="checkbox" checked> Count party as currently owned</label>
 
     <button id="run">Read Save</button>
     <p id="error" class="error"></p>
+  </section>
+
+  <section class="card">
+    <h2>Emulator Control Skeleton</h2>
+    <p class="muted">Requires BizHawk Lua bridge listening on localhost. Safe buttons only for now.</p>
+    <div class="button-row">
+      <button type="button" onclick="emulatorState()">Get State</button>
+      <button type="button" onclick="pressButton('A')">A</button>
+      <button type="button" onclick="pressButton('B')">B</button>
+      <button type="button" onclick="pressButton('Start')">Start</button>
+      <button type="button" onclick="pressButton('Select')">Select</button>
+      <button type="button" onclick="pressButton('Up')">Up</button>
+      <button type="button" onclick="pressButton('Down')">Down</button>
+      <button type="button" onclick="pressButton('Left')">Left</button>
+      <button type="button" onclick="pressButton('Right')">Right</button>
+    </div>
+    <pre id="emulatorOutput">Not connected.</pre>
+  </section>
+
+  <section class="card">
+    <h2>Voice Copilot Skeleton</h2>
+    <p class="muted">
+      Future GPT Realtime voice mode. Talk-to-me mode narrates; rubberduck mode
+      comments and sends observations to validation before actions.
+    </p>
+    <label for="voiceMode">Voice mode</label>
+    <select id="voiceMode">
+      <option value="off">Off</option>
+      <option value="talk-to-me">Talk to me</option>
+      <option value="rubberduck">Rubberduck validator commentary</option>
+    </select>
+    <button type="button" onclick="voiceConfig()">Check Voice Config</button>
+    <pre id="voiceOutput">Voice disabled.</pre>
   </section>
 
   <section id="results" class="card" hidden>
@@ -84,7 +125,8 @@ async function runReport() {
     game: document.getElementById('game').value,
     copy: 'auto',
     scope: document.getElementById('scope').value,
-    include_party: document.getElementById('includeParty').checked
+    include_party: document.getElementById('includeParty').checked,
+    target_policy: document.getElementById('targetPolicy').value
   };
   try {
     const response = await fetch('/api/pc-living-dex', {
@@ -119,6 +161,34 @@ function renderReport(data) {
       `<td>${target.method}</td>`
     ].join('');
     rows.appendChild(row);
+  }
+}
+
+async function emulatorState() {
+  await apiToPre('/api/emulator/state', { method: 'GET' }, 'emulatorOutput');
+}
+
+async function pressButton(button) {
+  await apiToPre('/api/emulator/press', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ button, frames: 1 })
+  }, 'emulatorOutput');
+}
+
+async function voiceConfig() {
+  const mode = document.getElementById('voiceMode').value;
+  await apiToPre('/api/voice/config?mode=' + encodeURIComponent(mode), { method: 'GET' }, 'voiceOutput');
+}
+
+async function apiToPre(url, options, elementId) {
+  const element = document.getElementById(elementId);
+  try {
+    const response = await fetch(url, options);
+    const data = await response.json();
+    element.textContent = JSON.stringify(data, null, 2);
+  } catch (err) {
+    element.textContent = err.message || String(err);
   }
 }
 

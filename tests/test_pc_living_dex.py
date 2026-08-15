@@ -21,9 +21,9 @@ def sample_payload() -> dict[str, object]:
     }
 
 
-def test_regional_living_dex_targets_include_version_available_species() -> None:
-    white_targets = {target.name for target in living_dex_targets("white")}
-    black_targets = {target.name for target in living_dex_targets("black")}
+def test_game_regional_living_dex_targets_include_version_available_species() -> None:
+    white_targets = {target.name for target in living_dex_targets("white", target_policy="game-regional")}
+    black_targets = {target.name for target in living_dex_targets("black", target_policy="game-regional")}
 
     assert "Zekrom" in white_targets
     assert "Reshiram" not in white_targets
@@ -31,9 +31,24 @@ def test_regional_living_dex_targets_include_version_available_species() -> None
     assert "Zekrom" not in black_targets
 
 
+def test_all_regional_policy_includes_both_box_legendaries() -> None:
+    targets = {target.name for target in living_dex_targets("white", target_policy="all-regional")}
+
+    assert "Reshiram" in targets
+    assert "Zekrom" in targets
+
+
+def test_catchable_only_policy_excludes_event_mythicals() -> None:
+    targets = {target.name for target in living_dex_targets("white", target_policy="catchable-only")}
+
+    assert "Lillipup" in targets
+    assert "Genesect" not in targets
+
+
 def test_pc_living_dex_counts_pc_and_party_separately() -> None:
     report = build_pc_living_dex_report(sample_payload(), "white", include_party=True)
 
+    assert report.target_policy == "game-regional"
     assert report.pc_owned_target_count == 1
     assert report.party_owned_target_count == 1
     assert report.combined_owned_target_count == 2
@@ -47,6 +62,13 @@ def test_pc_living_dex_can_ignore_party() -> None:
     assert report.pc_owned_target_count == 1
     assert report.party_owned_target_count == 1
     assert report.combined_owned_target_count == 1
+
+
+def test_report_can_use_all_regional_policy() -> None:
+    report = build_pc_living_dex_report(sample_payload(), "white", target_policy="all-regional")
+
+    assert report.target_count == 156
+    assert report.target_policy == "all-regional"
 
 
 def test_national_scope_is_explicitly_pending() -> None:

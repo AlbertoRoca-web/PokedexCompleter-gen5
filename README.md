@@ -93,6 +93,7 @@ Next step is migrating that prototype into this repo as a proper package.
 - [`docs/provider-health.md`](docs/provider-health.md)
 - [`docs/supabase.md`](docs/supabase.md)
 - [`docs/supabase-persistence.md`](docs/supabase-persistence.md)
+- [`docs/voice-copilot.md`](docs/voice-copilot.md)
 
 ## Development
 
@@ -107,7 +108,7 @@ Planned CLI examples:
 
 ```powershell
 rld inspect-save "D:\path\to\POKEMON W.sav" --game white
-rld pc-living-dex "D:\path\to\POKEMON W.sav" --game white --scope regional
+rld pc-living-dex "D:\path\to\POKEMON W.sav" --game white --scope regional --target-policy game-regional
 rld catchable-report "D:\path\to\POKEMON W.sav" --game white --mode direct
 rld report-living-dex "D:\path\to\POKEMON W.sav" --game white --format markdown
 rld report-living-dex "D:\path\to\POKEMON W.sav" --game white --format json

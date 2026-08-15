@@ -40,7 +40,7 @@ The dashboard lets you enter a local save path, choose game/scope, and view miss
 ## CLI
 
 ```powershell
-uv run rld pc-living-dex "D:\path\to\POKEMON W.sav" --game white --scope regional
+uv run rld pc-living-dex "D:\path\to\POKEMON W.sav" --game white --scope regional --target-policy game-regional
 ```
 
 Count party as owned, default:
@@ -70,6 +70,14 @@ national
 ```
 
 National mode is intentionally pending. Default stays regional Unova.
+
+## Target policy
+
+```text
+game-regional   version-aware Unova PC Living Dex
+all-regional    every BW Unova dex entry, including version/event/trade targets
+catchable-only  direct in-game targets for the selected version
+```
 
 ## Website vs executable
 

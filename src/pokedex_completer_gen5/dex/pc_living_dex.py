@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from pokedex_completer_gen5.dex.bw_unova import UNOVA_DEX, Pokemon
+from pokedex_completer_gen5.dex.catchable_targets import target_species_for_game
 from pokedex_completer_gen5.dex.game_profiles import normalize_game
 from pokedex_completer_gen5.dex.national_species import national_species_name
 
@@ -30,6 +31,7 @@ class PcLivingDexReport:
     game_profile: str
     scope: str
     include_party: bool
+    target_policy: str
     selected_copy: int
     target_count: int
     pc_owned_target_count: int
@@ -46,6 +48,7 @@ class PcLivingDexReport:
             "game_profile": self.game_profile,
             "scope": self.scope,
             "include_party": self.include_party,
+            "target_policy": self.target_policy,
             "selected_copy": self.selected_copy,
             "target_count": self.target_count,
             "pc_owned_target_count": self.pc_owned_target_count,
@@ -67,9 +70,10 @@ def build_pc_living_dex_report(
     game: str,
     scope: str = "regional",
     include_party: bool = True,
+    target_policy: str = "game-regional",
 ) -> PcLivingDexReport:
     profile = normalize_game(game)
-    targets = living_dex_targets(profile.key, scope=scope)
+    targets = living_dex_targets(profile.key, scope=scope, target_policy=target_policy)
     target_ids = {target.national for target in targets}
     selected_copy = _selected_copy(save_payload)
     pc_counts, party_counts = physical_counts_by_source(save_payload, selected_copy)
@@ -85,6 +89,7 @@ def build_pc_living_dex_report(
         game_profile=profile.key,
         scope=scope,
         include_party=include_party,
+        target_policy=target_policy,
         selected_copy=selected_copy,
         target_count=len(targets),
         pc_owned_target_count=len(pc_owned_ids),
@@ -102,7 +107,11 @@ def owned_target_ids(counts: Counter[int], target_ids: set[int]) -> set[int]:
     return {species_id for species_id, count in counts.items() if count > 0 and species_id in target_ids}
 
 
-def living_dex_targets(game: str, scope: str = "regional") -> tuple[LivingDexTarget, ...]:
+def living_dex_targets(
+    game: str,
+    scope: str = "regional",
+    target_policy: str = "game-regional",
+) -> tuple[LivingDexTarget, ...]:
     if scope == "national":
         raise NotImplementedError("National living dex scope is intentionally pending.")
     if scope != "regional":
@@ -112,7 +121,22 @@ def living_dex_targets(game: str, scope: str = "regional") -> tuple[LivingDexTar
     if profile.regional_dex_key != "bw_unova":
         return tuple()
 
-    return tuple(target_from_pokemon(pokemon) for pokemon in UNOVA_DEX if available_in_game(pokemon, profile.key))
+    if target_policy == "game-regional":
+        pokemon_targets = (pokemon for pokemon in UNOVA_DEX if available_in_game(pokemon, profile.key))
+        return tuple(target_from_pokemon(pokemon) for pokemon in pokemon_targets)
+    if target_policy == "all-regional":
+        return tuple(target_from_pokemon(pokemon) for pokemon in UNOVA_DEX)
+    if target_policy == "catchable-only":
+        return tuple(
+            LivingDexTarget(
+                national=target.national,
+                regional=target.regional,
+                name=target.name,
+                method=target.method,
+            )
+            for target in target_species_for_game(profile.key, mode="direct")
+        )
+    raise ValueError(f"Unsupported target policy: {target_policy}")
 
 
 def target_from_pokemon(pokemon: Pokemon) -> LivingDexTarget:

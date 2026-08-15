@@ -45,10 +45,17 @@ def pc_living_dex(
     copy: str = typer.Option("auto", help="auto, 0, or 1."),
     scope: str = typer.Option("regional", help="regional now; national later."),
     include_party: bool = typer.Option(True, help="Count party as currently owned alongside PC."),
+    target_policy: str = typer.Option("game-regional", help="game-regional, all-regional, or catchable-only."),
 ) -> None:
     """Compare PC/party physical bodies against the regional PC Living Dex target."""
     payload = build_save_payload(save_path, game, copy)
-    report = build_pc_living_dex_report(payload, game, scope=scope, include_party=include_party)
+    report = build_pc_living_dex_report(
+        payload,
+        game,
+        scope=scope,
+        include_party=include_party,
+        target_policy=target_policy,
+    )
     console.print_json(data=report.to_dict())
 
 
