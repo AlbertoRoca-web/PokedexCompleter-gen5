@@ -64,6 +64,30 @@ class BizHawkClient:
     def press(self, button: str, frames: int = 1) -> dict[str, Any]:
         return self.request("press", {"button": button, "frames": frames})
 
+    def press_sequence(self, buttons: list[str], frames: int = 1, gap_frames: int = 1) -> dict[str, Any]:
+        return self.request(
+            "press_sequence",
+            {"buttons_csv": ",".join(buttons), "frames": frames, "gap_frames": gap_frames},
+        )
+
+    def frame_advance(self, frames: int = 1) -> dict[str, Any]:
+        return self.request("frame_advance", {"frames": frames})
+
+    def pause(self) -> dict[str, Any]:
+        return self.request("pause")
+
+    def resume(self) -> dict[str, Any]:
+        return self.request("resume")
+
+    def save_checkpoint(self, name: str) -> dict[str, Any]:
+        return self.request("save_checkpoint", {"name": name})
+
+    def load_checkpoint(self, name: str) -> dict[str, Any]:
+        return self.request("load_checkpoint", {"name": name})
+
+    def screenshot(self) -> dict[str, Any]:
+        return self.request("screenshot")
+
     @staticmethod
     def _read_line(sock: socket.socket) -> str:
         chunks: list[bytes] = []

@@ -4,6 +4,8 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
+import httpx
+
 VOICE_MODES = ("off", "talk-to-me", "rubberduck")
 
 
@@ -20,7 +22,7 @@ class VoiceConfig:
             "realtime_ready": self.realtime_ready,
             "model": self.model,
             "instructions": self.instructions,
-            "note": "Browser Realtime session minting is pending; API key is never exposed to browser.",
+            "note": "Browser Realtime sessions use ephemeral credentials; API key is never exposed to browser.",
         }
 
 
@@ -33,6 +35,31 @@ def build_voice_config(mode: str = "off") -> VoiceConfig:
         model=os.getenv("OPENAI_REALTIME_MODEL", "gpt-realtime"),
         instructions=voice_instructions(mode),
     )
+
+
+def create_realtime_session(mode: str = "talk-to-me") -> dict[str, Any]:
+    config = build_voice_config(mode)
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not configured")
+    if mode == "off":
+        raise ValueError("Voice mode must not be off when creating a Realtime session")
+
+    response = httpx.post(
+        "https://api.openai.com/v1/realtime/sessions",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "model": config.model,
+            "voice": os.getenv("OPENAI_REALTIME_VOICE", "alloy"),
+            "instructions": config.instructions,
+        },
+        timeout=20,
+    )
+    response.raise_for_status()
+    decoded = response.json()
+    if not isinstance(decoded, dict):
+        raise RuntimeError("Realtime session response must be a JSON object")
+    return decoded
 
 
 def voice_instructions(mode: str) -> str:

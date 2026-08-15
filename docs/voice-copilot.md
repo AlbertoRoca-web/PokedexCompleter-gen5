@@ -53,7 +53,14 @@ GET /api/voice/config?mode=rubberduck
 
 CLI/local website can check whether Realtime is ready. It does not expose `OPENAI_API_KEY`.
 
-Actual browser Realtime session minting is pending. The backend must mint ephemeral Realtime credentials; the browser must never receive the long-lived OpenAI API key.
+Realtime session minting endpoint:
+
+```text
+POST /api/voice/realtime-session?mode=talk-to-me
+POST /api/voice/realtime-session?mode=rubberduck
+```
+
+The backend mints ephemeral Realtime credentials. The browser must never receive the long-lived OpenAI API key.
 
 ## Environment
 

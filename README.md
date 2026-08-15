@@ -87,6 +87,7 @@ Next step is migrating that prototype into this repo as a proper package.
 - [`docs/tech-stack.md`](docs/tech-stack.md)
 - [`docs/roadmap.md`](docs/roadmap.md)
 - [`docs/safety.md`](docs/safety.md)
+- [`docs/emulator-api.md`](docs/emulator-api.md)
 - [`docs/fixtures.md`](docs/fixtures.md)
 - [`docs/github-setup.md`](docs/github-setup.md)
 - [`docs/pc-living-dex.md`](docs/pc-living-dex.md)

@@ -87,8 +87,22 @@ DASHBOARD_HTML = """<!doctype html>
       <button type="button" onclick="pressButton('Down')">Down</button>
       <button type="button" onclick="pressButton('Left')">Left</button>
       <button type="button" onclick="pressButton('Right')">Right</button>
+      <button type="button" onclick="frameAdvance(30)">Advance 30f</button>
+      <button type="button" onclick="pressSequence(['A','A','A'])">AAA</button>
+      <button type="button" onclick="emulatorPost('/api/emulator/pause', {})">Pause</button>
+      <button type="button" onclick="emulatorPost('/api/emulator/resume', {})">Resume</button>
+      <button type="button" onclick="checkpointSave()">Save CP</button>
+      <button type="button" onclick="checkpointLoad()">Load CP</button>
+      <button type="button" onclick="emulatorScreenshot()">Screenshot</button>
     </div>
     <pre id="emulatorOutput">Not connected.</pre>
+  </section>
+
+  <section class="card">
+    <h2>Telemetry</h2>
+    <p class="muted">Live-ish local event stream. WebSocket reconnect is manual for now.</p>
+    <button type="button" onclick="telemetryFetch()">Fetch Telemetry</button>
+    <pre id="telemetryOutput">No telemetry yet.</pre>
   </section>
 
   <section class="card">
@@ -104,6 +118,8 @@ DASHBOARD_HTML = """<!doctype html>
       <option value="rubberduck">Rubberduck validator commentary</option>
     </select>
     <button type="button" onclick="voiceConfig()">Check Voice Config</button>
+    <button type="button" onclick="voiceRealtimeSession()">Create Realtime Session</button>
+    <button type="button" onclick="validatorEvent()">Send Rubberduck Event</button>
     <pre id="voiceOutput">Voice disabled.</pre>
   </section>
 
@@ -186,17 +202,75 @@ async function emulatorState() {
   await apiToPre('/api/emulator/state', { method: 'GET' }, 'emulatorOutput');
 }
 
-async function pressButton(button) {
-  await apiToPre('/api/emulator/press', {
+async function emulatorPost(url, body) {
+  await apiToPre(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ button, frames: 1 })
+    body: JSON.stringify(body)
   }, 'emulatorOutput');
+}
+
+async function pressButton(button) {
+  await emulatorPost('/api/emulator/press', { button, frames: 1 });
+}
+
+async function pressSequence(buttons) {
+  await emulatorPost('/api/emulator/press-sequence', { buttons, frames: 1, gap_frames: 1 });
+}
+
+async function frameAdvance(frames) {
+  await emulatorPost('/api/emulator/frame-advance', { frames });
+}
+
+async function checkpointSave() {
+  await emulatorPost('/api/emulator/checkpoint/save', { name: 'manual' });
+}
+
+async function checkpointLoad() {
+  await emulatorPost('/api/emulator/checkpoint/load', { name: 'manual' });
+}
+
+async function emulatorScreenshot() {
+  await apiToPre('/api/emulator/screenshot', { method: 'GET' }, 'emulatorOutput');
+}
+
+async function telemetryFetch() {
+  await apiToPre('/api/telemetry', { method: 'GET' }, 'telemetryOutput');
+}
+
+function connectTelemetry() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const socket = new WebSocket(`${protocol}//${location.host}/ws/telemetry`);
+  socket.onmessage = (event) => {
+    document.getElementById('telemetryOutput').textContent = event.data;
+  };
+  socket.onerror = () => {
+    document.getElementById('telemetryOutput').textContent = 'Telemetry WebSocket error.';
+  };
 }
 
 async function voiceConfig() {
   const mode = document.getElementById('voiceMode').value;
   await apiToPre('/api/voice/config?mode=' + encodeURIComponent(mode), { method: 'GET' }, 'voiceOutput');
+}
+
+async function voiceRealtimeSession() {
+  const mode = document.getElementById('voiceMode').value;
+  await apiToPre('/api/voice/realtime-session?mode=' + encodeURIComponent(mode), {
+    method: 'POST'
+  }, 'voiceOutput');
+}
+
+async function validatorEvent() {
+  await apiToPre('/api/validator/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      event_type: 'voice_commentary',
+      message: 'Rubberduck event test from dashboard.',
+      payload: { source: 'dashboard' }
+    })
+  }, 'voiceOutput');
 }
 
 async function apiToPre(url, options, elementId) {
@@ -226,6 +300,7 @@ function formatApiError(data) {
 }
 
 document.getElementById('run').addEventListener('click', runReport);
+connectTelemetry();
 </script>
 </body>
 </html>
