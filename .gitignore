@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+dist/
+build/
+*.egg-info/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Local run artifacts
+runs/
+logs/
+screenshots/
+checkpoints/
+*.jsonl
+
+# Saves / ROMs / copyrighted game files
+*.sav
+*.dsv
+*.duc
+*.dst
+*.nds
+*.gba
+*.gb
+*.gbc
+*.zip
+*.7z
+*.rar
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
