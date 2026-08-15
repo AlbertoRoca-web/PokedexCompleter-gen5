@@ -1,8 +1,8 @@
 # PokedexCompleter Gen 5
 
-AI-assisted **Generation 5 Living Dex completer** for Pokémon Black / White / Black 2 / White 2.
+AI-assisted **Generation 5 catchable inventory completer** for Pokémon Black / White / Black 2 / White 2.
 
-The project goal is not merely to mark Pokédex caught flags. A Living Dex requires one physical Pokémon for every required regional dex stage at the same time.
+The project goal is not to trust Pokédex caught/seen flags. Completed saves can have completed Pokédex data while the active PC boxes and party do not contain every target species as physical bodies. The source of truth is active save copy -> PC boxes + party -> physical species inventory.
 
 ## Core philosophy
 
@@ -61,7 +61,9 @@ That prototype already has:
 
 - read-only PK5 decoding;
 - party + PC extraction for observed Gen 5 saves;
-- BW Unova living dex planner;
+- BW Unova living dex planner prototype;
+- physical PC/party inventory extraction;
+- catchable-target report path;
 - breeding shortcut logic;
 - game profile guardrails so B2W2 does not silently use BW dex data.
 
@@ -72,7 +74,7 @@ Next step is migrating that prototype into this repo as a proper package.
 - Default mode is read-only.
 - No save writing until offsets, checksums, rollback, and tests are proven.
 - Never silently apply the wrong regional dex to a game.
-- Never evolve/release/trade away the last required Living Dex copy.
+- Never evolve/release/trade away the last required physical inventory copy.
 - Emulator automation must be interruptible.
 - LLMs choose objectives; deterministic executors perform repetitive actions.
 
@@ -81,6 +83,7 @@ Next step is migrating that prototype into this repo as a proper package.
 - [`docs/architecture.md`](docs/architecture.md)
 - [`docs/ai-planner.md`](docs/ai-planner.md)
 - [`docs/bizhawk-smoke-test.md`](docs/bizhawk-smoke-test.md)
+- [`docs/catchable-inventory.md`](docs/catchable-inventory.md)
 - [`docs/tech-stack.md`](docs/tech-stack.md)
 - [`docs/roadmap.md`](docs/roadmap.md)
 - [`docs/safety.md`](docs/safety.md)
@@ -103,6 +106,7 @@ Planned CLI examples:
 
 ```powershell
 rld inspect-save "D:\path\to\POKEMON W.sav" --game white
+rld catchable-report "D:\path\to\POKEMON W.sav" --game white --mode direct
 rld report-living-dex "D:\path\to\POKEMON W.sav" --game white --format markdown
 rld report-living-dex "D:\path\to\POKEMON W.sav" --game white --format json
 rld provider-health

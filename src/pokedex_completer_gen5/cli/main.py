@@ -9,11 +9,12 @@ from rich.console import Console
 from pokedex_completer_gen5.agents.planner import plan_next_tasks
 from pokedex_completer_gen5.agents.providers.factory import create_planner_provider
 from pokedex_completer_gen5.backend.report_store import sha256_file, store_dex_report
+from pokedex_completer_gen5.dex.catchable_targets import build_catchable_inventory_report
 from pokedex_completer_gen5.integrations.env import load_environment
 from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
 from pokedex_completer_gen5.saveio.gen5_save import build_save_output, build_save_payload, write_save_report
 
-app = typer.Typer(help="Generation 5 Living Dex completer.")
+app = typer.Typer(help="Generation 5 physical inventory and catchable-target completer.")
 console = Console()
 load_environment()
 
@@ -36,6 +37,19 @@ def inspect_save(
     console.print(build_save_output(save_path, game, copy, "markdown"))
 
 
+@app.command("catchable-report")
+def catchable_report(
+    save_path: Path = typer.Argument(..., help="Path to Gen 5 save file."),
+    game: str = typer.Option("white", help="black, white, black2, or white2."),
+    copy: str = typer.Option("auto", help="auto, 0, or 1."),
+    mode: str = typer.Option("direct", help="direct or obtainable."),
+) -> None:
+    """Compare active PC/party bodies against catchable targets for this game."""
+    payload = build_save_payload(save_path, game, copy)
+    report = build_catchable_inventory_report(payload, game, mode=mode)
+    console.print_json(data=report.to_dict())
+
+
 @app.command("report-living-dex")
 def report_living_dex(
     save_path: Path = typer.Argument(..., help="Path to Gen 5 save file."),
@@ -56,7 +70,7 @@ def plan_report(
     provider: str = typer.Option("openai", help="openai, anthropic, or google."),
     model: str | None = typer.Option(None, help="Optional provider-specific model override."),
 ) -> None:
-    """Ask an LLM provider for prioritized next Living Dex tasks from a report JSON file."""
+    """Ask an LLM provider for prioritized next tasks from a report JSON file."""
     payload = json.loads(report_path.read_text(encoding="utf-8"))
     planner_provider = create_planner_provider(provider, model=model)
     result = plan_next_tasks(payload, planner_provider)
