@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -51,6 +51,11 @@ def dashboard() -> str:
     return DASHBOARD_HTML
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon() -> Response:
+    return Response(status_code=204)
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__}
@@ -96,10 +101,16 @@ def pc_living_dex(request: PcLivingDexRequest) -> dict[str, object]:
             include_party=request.include_party,
             target_policy=request.target_policy,
         ).to_dict()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=f"Save file not found: {request.save_path}") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=f"Cannot read save file: {request.save_path}") from exc
     except NotImplementedError as exc:
         raise HTTPException(status_code=501, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=400, detail=f"Could not read save file: {exc}") from exc
 
 
 @app.post("/inspect-save")

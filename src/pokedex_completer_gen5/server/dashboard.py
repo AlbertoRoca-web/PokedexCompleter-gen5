@@ -134,8 +134,8 @@ async function runReport() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(JSON.stringify(data, null, 2));
+    const data = await readJsonOrText(response);
+    if (!response.ok) throw new Error(formatApiError(data));
     renderReport(data);
   } catch (err) {
     error.textContent = err.message || String(err);
@@ -185,11 +185,26 @@ async function apiToPre(url, options, elementId) {
   const element = document.getElementById(elementId);
   try {
     const response = await fetch(url, options);
-    const data = await response.json();
+    const data = await readJsonOrText(response);
     element.textContent = JSON.stringify(data, null, 2);
   } catch (err) {
     element.textContent = err.message || String(err);
   }
+}
+
+async function readJsonOrText(response) {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { detail: text };
+  }
+}
+
+function formatApiError(data) {
+  if (data && typeof data.detail === 'string') return data.detail;
+  return JSON.stringify(data, null, 2);
 }
 
 document.getElementById('run').addEventListener('click', runReport);
