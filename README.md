@@ -87,6 +87,7 @@ Next step is migrating that prototype into this repo as a proper package.
 - [`docs/github-setup.md`](docs/github-setup.md)
 - [`docs/provider-health.md`](docs/provider-health.md)
 - [`docs/supabase.md`](docs/supabase.md)
+- [`docs/supabase-persistence.md`](docs/supabase-persistence.md)
 
 ## Development
 
@@ -104,6 +105,7 @@ rld inspect-save "D:\path\to\POKEMON W.sav" --game white
 rld report-living-dex "D:\path\to\POKEMON W.sav" --game white --format markdown
 rld report-living-dex "D:\path\to\POKEMON W.sav" --game white --format json
 rld provider-health
+rld sync-report "D:\path\to\POKEMON W.sav" --game white
 rld serve --host 127.0.0.1 --port 8787
 
 # BizHawk bridge scaffold lives under lua/bizhawk_gen5_bridge.lua

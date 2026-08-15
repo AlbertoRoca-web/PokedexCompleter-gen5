@@ -5,11 +5,14 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from pokedex_completer_gen5.backend.report_store import sha256_file, store_dex_report
+from pokedex_completer_gen5.integrations.env import load_environment
 from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
-from pokedex_completer_gen5.saveio.gen5_save import build_save_output, write_save_report
+from pokedex_completer_gen5.saveio.gen5_save import build_save_output, build_save_payload, write_save_report
 
 app = typer.Typer(help="Generation 5 Living Dex completer.")
 console = Console()
+load_environment()
 
 
 @app.command()
@@ -42,6 +45,19 @@ def report_living_dex(
     output_path, report = write_save_report(save_path, game, copy, output, format)
     console.print(report)
     console.print(f"[green]Report written to:[/green] {output_path}")
+
+
+@app.command("sync-report")
+def sync_report(
+    save_path: Path = typer.Argument(..., help="Path to Gen 5 save file."),
+    game: str = typer.Option("white", help="black, white, black2, or white2."),
+    copy: str = typer.Option("auto", help="auto, 0, or 1."),
+) -> None:
+    """Generate a report payload and store sanitized metadata in Supabase."""
+    payload = build_save_payload(save_path, game, copy)
+    response = store_dex_report(payload, save_sha256=sha256_file(save_path))
+    console.print("[green]Synced sanitized dex report to Supabase.[/green]")
+    console.print(response)
 
 
 @app.command("provider-health")

@@ -7,8 +7,11 @@ from fastapi import FastAPI
 from pydantic import BaseModel, ConfigDict, Field
 
 from pokedex_completer_gen5 import __version__
+from pokedex_completer_gen5.integrations.env import load_environment
 from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
 from pokedex_completer_gen5.saveio.physical_report import build_save_payload, build_save_report
+
+load_environment()
 
 app = FastAPI(title="PokedexCompleter Gen 5", version=__version__)
 
