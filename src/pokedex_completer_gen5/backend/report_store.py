@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from copy import deepcopy
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from pokedex_completer_gen5.backend.supabase_client import create_supabase_client
@@ -41,11 +41,26 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def path_leaf(value: str) -> str:
+    """Return a file name from either Windows or POSIX path text.
+
+    CI runs on Linux, but local reports may contain Windows paths like
+    `D:\\alroc\\codepup\\rolo3\\POKEMON W.sav`. `Path(...).name` is OS-native,
+    so Linux treats backslashes as normal characters. Pure path flavors avoid that
+    tiny portable-code rake to the face.
+    """
+    candidates = (
+        PureWindowsPath(value).name,
+        PurePosixPath(value).name,
+    )
+    return min((candidate for candidate in candidates if candidate), key=len, default=value)
+
+
 def sanitized_report_payload(payload: dict[str, Any]) -> dict[str, Any]:
     sanitized = deepcopy(payload)
     save_value = sanitized.get("save")
     if isinstance(save_value, str) and save_value:
-        sanitized["save"] = Path(save_value).name
+        sanitized["save"] = path_leaf(save_value)
         sanitized["save_path_redacted"] = True
     return sanitized
 

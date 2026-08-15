@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pokedex_completer_gen5.backend.report_store import build_dex_report_row, sanitized_report_payload
+from pokedex_completer_gen5.backend.report_store import build_dex_report_row, path_leaf, sanitized_report_payload
 
 
 def sample_payload() -> dict[str, object]:
@@ -15,6 +15,11 @@ def sample_payload() -> dict[str, object]:
             "missing_species_count": 154,
         },
     }
+
+
+def test_path_leaf_handles_windows_and_posix_paths() -> None:
+    assert path_leaf(r"D:\\alroc\\codepup\\rolo3\\POKEMON W.sav") == "POKEMON W.sav"
+    assert path_leaf("/home/alberto/saves/POKEMON W.sav") == "POKEMON W.sav"
 
 
 def test_sanitized_report_payload_redacts_save_path() -> None:
