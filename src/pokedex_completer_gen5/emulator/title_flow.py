@@ -76,19 +76,30 @@ def run_resume_saved_game_from_title(
     )
     phases.append(_screenshot_phase("before", before))
 
-    phases.append(_press_phase(bridge_request, "press-start-on-title", "start", press_frames=press_frames))
-    phases.append(_advance_phase(bridge_request, "minimum-wait-after-start", wait_after_start_frames))
-    after_start, after_start_phases = _observe_until_changed(
-        bridge_request,
-        reference=before,
-        label=f"title-flow-{flow_id}-after-start",
-        phase_prefix="after-start",
-        max_change_attempts=change_max_attempts,
-        change_advance_frames=change_advance_frames,
-        visual_max_attempts=visual_max_attempts,
-        visual_advance_frames=visual_advance_frames,
-    )
-    phases.extend(after_start_phases)
+    before_type = _latest_type(before)
+    after_start = before
+    if before_type != "menu-like":
+        phases.append(_press_phase(bridge_request, "press-start-on-title", "start", press_frames=press_frames))
+        phases.append(_advance_phase(bridge_request, "minimum-wait-after-start", wait_after_start_frames))
+        after_start, after_start_phases = _observe_until_changed(
+            bridge_request,
+            reference=before,
+            label=f"title-flow-{flow_id}-after-start",
+            phase_prefix="after-start",
+            max_change_attempts=change_max_attempts,
+            change_advance_frames=change_advance_frames,
+            visual_max_attempts=visual_max_attempts,
+            visual_advance_frames=visual_advance_frames,
+        )
+        phases.extend(after_start_phases)
+    else:
+        phases.append(
+            TitleFlowPhase(
+                name="skip-start-already-menu-like",
+                action={"method": "classify_screenshot"},
+                result={"ok": True, "screen_type": before_type},
+            )
+        )
 
     phases.append(_press_phase(bridge_request, "confirm-continue", "confirm", press_frames=press_frames))
     phases.append(_advance_phase(bridge_request, "minimum-wait-after-continue", wait_after_continue_frames))
