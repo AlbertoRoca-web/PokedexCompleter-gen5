@@ -13,6 +13,7 @@ from pokedex_completer_gen5.agents.validator_store import recent_validator_event
 from pokedex_completer_gen5.agents.voice import build_voice_config, create_realtime_session
 from pokedex_completer_gen5.dex.pc_living_dex import build_pc_living_dex_report
 from pokedex_completer_gen5.emulator.bizhawk_client import BizHawkBridgeError, BizHawkClient, bizhawk_config_from_env
+from pokedex_completer_gen5.emulator.controls import controls_payload, normalize_button_or_action
 from pokedex_completer_gen5.emulator.diagnostics import build_emulator_diagnostics, wait_for_bridge
 from pokedex_completer_gen5.emulator.launcher import bizhawk_launch_config_from_env, launch_bizhawk
 from pokedex_completer_gen5.emulator.native_bridge import NativeBridgeError, native_bridge, wait_for_native_bridge
@@ -181,6 +182,11 @@ def add_native_diagnosis(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+@app.get("/api/emulator/controls")
+def emulator_controls() -> dict[str, Any]:
+    return controls_payload()
+
+
 @app.get("/api/emulator/diagnostics")
 def emulator_diagnostics() -> dict[str, Any]:
     launch_config = bizhawk_launch_config_from_env()
@@ -225,7 +231,7 @@ def emulator_press(request: EmulatorPressRequest) -> dict[str, Any]:
     try:
         return bridge_response(
             "emulator.press",
-            bridge_request("press", {"button": request.button, "frames": request.frames}),
+            bridge_request("press", {"button": normalize_button_or_action(request.button), "frames": request.frames}),
         )
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.press.error", exc) from exc
@@ -238,7 +244,11 @@ def emulator_press_sequence(request: EmulatorPressSequenceRequest) -> dict[str, 
             "emulator.press_sequence",
             bridge_request(
                 "press_sequence",
-                {"buttons_csv": ",".join(request.buttons), "frames": request.frames, "gap_frames": request.gap_frames},
+                {
+                    "buttons_csv": ",".join(normalize_button_or_action(button) for button in request.buttons),
+                    "frames": request.frames,
+                    "gap_frames": request.gap_frames,
+                },
             ),
         )
     except BizHawkBridgeError as exc:

@@ -92,16 +92,20 @@ DASHBOARD_HTML = """<!doctype html>
       <button type="button" onclick="launchBizHawk()">Launch BizHawk + White</button>
       <button type="button" onclick="diagnoseBridge()">Diagnose Bridge</button>
       <button type="button" onclick="emulatorState()">Get State</button>
-      <button type="button" onclick="pressButton('A')">A</button>
-      <button type="button" onclick="pressButton('B')">B</button>
-      <button type="button" onclick="pressButton('Start')">Start</button>
-      <button type="button" onclick="pressButton('Select')">Select</button>
+      <button type="button" onclick="pressButton('confirm')">Confirm (A / keyboard X)</button>
+      <button type="button" onclick="pressButton('cancel')">Cancel (B / keyboard Z)</button>
+      <button type="button" onclick="pressButton('menu')">Menu (X / keyboard S)</button>
+      <button type="button" onclick="pressButton('registered-item')">Registered Item (Y / keyboard A)</button>
+      <button type="button" onclick="pressButton('Start')">Start (Enter)</button>
+      <button type="button" onclick="pressButton('Select')">Select (Space)</button>
       <button type="button" onclick="pressButton('Up')">Up</button>
       <button type="button" onclick="pressButton('Down')">Down</button>
       <button type="button" onclick="pressButton('Left')">Left</button>
       <button type="button" onclick="pressButton('Right')">Right</button>
+      <button type="button" onclick="pressButton('L')">L (keyboard W)</button>
+      <button type="button" onclick="pressButton('R')">R (keyboard E)</button>
       <button type="button" onclick="frameAdvance(30)">Advance 30f</button>
-      <button type="button" onclick="pressSequence(['A','A','A'])">AAA</button>
+      <button type="button" onclick="pressSequence(['confirm','confirm','confirm'])">Confirm x3</button>
       <button type="button" onclick="emulatorPost('/api/emulator/pause', {})">Pause</button>
       <button type="button" onclick="emulatorPost('/api/emulator/resume', {})">Resume</button>
       <button type="button" onclick="checkpointSave()">Save CP</button>
