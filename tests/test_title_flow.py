@@ -115,6 +115,38 @@ def test_resume_saved_game_skips_start_when_already_on_continue_menu(monkeypatch
     assert ("press", {"button": "A", "frames": 5}) in calls
 
 
+def test_resume_flow_refuses_cgear_inputs_when_still_on_continue(monkeypatch, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    configure_runtime(monkeypatch, tmp_path)
+    calls: list[tuple[str, dict[str, Any] | None]] = []
+
+    def fake_bridge(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        calls.append((method, params))
+        if method == "bridge.info":
+            return {"ok": True, "method": method}
+        if method == "screenshot":
+            path = Path(str(params["path"]))  # type: ignore[index]
+            _continue_menu_like(path)
+            return {"ok": True, "method": method}
+        if method in {"press", "frame_advance"}:
+            return {"ok": True, "method": method}
+        raise AssertionError(method)
+
+    result = run_resume_saved_game_from_title(
+        fake_bridge,
+        initial_wait_frames=1,
+        wait_after_continue_frames=1,
+        visual_max_attempts=1,
+        press_frames=5,
+        continue_press_frames=5,
+        change_max_attempts=1,
+        change_advance_frames=1,
+    ).to_dict()
+
+    assert result["status"] == "needs-human"
+    assert result["phases"][-1]["name"] == "safety-stop-still-on-continue-menu"
+    assert ("press", {"button": "Down", "frames": 5}) not in calls
+
+
 def test_overworld_frame_guard_rejects_dark_cinematic(tmp_path: Path) -> None:
     path = tmp_path / "cinematic.png"
     image = Image.new("RGB", (256, 384), "black")

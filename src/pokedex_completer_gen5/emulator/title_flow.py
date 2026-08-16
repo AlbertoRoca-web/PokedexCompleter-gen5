@@ -115,6 +115,24 @@ def run_resume_saved_game_from_title(
         visual_advance_frames=visual_advance_frames,
     )
     phases.extend(continue_phases)
+    if _latest_path_matches(after_continue, _looks_like_continue_menu_frame):
+        phases.append(
+            TitleFlowPhase(
+                name="safety-stop-still-on-continue-menu",
+                action={"method": "safety_guard"},
+                result={
+                    "ok": False,
+                    "reason": (
+                        "Still on Continue menu after confirm; refusing Down+A because that can select New Game."
+                    ),
+                },
+            )
+        )
+        verification = _verify_title_resume(before, after_continue, {"mode": "unknown", "state": {}})
+        verification["status"] = "needs-human"
+        verification["reason"] = "Still on Continue menu after confirm; unsafe to continue C-Gear sequence."
+        return TitleResumeFlowResult(id=flow_id, status="needs-human", phases=phases, verification=verification)
+
     phases.append(_press_phase(bridge_request, "cgear-prompt-select-no", "down", press_frames=press_frames))
     phases.append(_press_phase(bridge_request, "cgear-prompt-confirm-no", "confirm", press_frames=press_frames))
     phases.append(_advance_phase(bridge_request, "minimum-wait-after-cgear-no", wait_after_cgear_prompt_frames))
