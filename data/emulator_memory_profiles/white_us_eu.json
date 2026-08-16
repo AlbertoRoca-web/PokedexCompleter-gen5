@@ -1,0 +1,18 @@
+{
+  "profile_id": "white_us_eu",
+  "game": "white",
+  "domain": "ARM9 System Bus",
+  "notes": "Offsets are intentionally unknown until verified by RAM probes. Do not guess.",
+  "fields": {
+    "menu_state": null,
+    "battle_state": null,
+    "map_id": null,
+    "player_x": null,
+    "player_y": null,
+    "facing": null,
+    "transition_state": null
+  },
+  "enum_maps": {
+    "facing": {}
+  }
+}

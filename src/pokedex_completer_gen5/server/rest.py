@@ -12,7 +12,6 @@ from pokedex_completer_gen5 import __version__
 from pokedex_completer_gen5.agents.validator_store import recent_validator_events, record_validator_event
 from pokedex_completer_gen5.agents.voice import build_voice_config, create_realtime_session
 from pokedex_completer_gen5.ai.router import router_payload
-from pokedex_completer_gen5.application.service import service
 from pokedex_completer_gen5.dex.pc_living_dex import build_pc_living_dex_report
 from pokedex_completer_gen5.emulator.artifacts import checkpoint_path, screenshot_path
 from pokedex_completer_gen5.emulator.bizhawk_client import BizHawkBridgeError, BizHawkClient, bizhawk_config_from_env
@@ -26,6 +25,7 @@ from pokedex_completer_gen5.emulator.native_bridge import NativeBridgeError, nat
 from pokedex_completer_gen5.emulator.readiness import ensure_emulator_ready
 from pokedex_completer_gen5.emulator.rom import identify_rom
 from pokedex_completer_gen5.emulator.screen_classifier import classify_screenshot
+from pokedex_completer_gen5.emulator.semantic_state import build_semantic_state
 from pokedex_completer_gen5.emulator.title_flow import run_resume_saved_game_from_title
 from pokedex_completer_gen5.emulator.vision import analyze_screenshot
 from pokedex_completer_gen5.emulator.visual_wait import capture_informative_screenshot
@@ -332,11 +332,9 @@ def emulator_state() -> dict[str, Any]:
 
 
 @app.get("/api/emulator/semantic-state")
-def emulator_semantic_state() -> dict[str, Any]:
+def emulator_semantic_state(profile_id: str = "white_us_eu") -> dict[str, Any]:
     try:
-        raw_state = bridge_request("get_state")
-        semantic = service().semantic_emulator_state(raw_state)
-        payload = semantic.model_dump(mode="json")
+        payload = build_semantic_state(bridge_request, profile_id=profile_id).to_dict()
         record_telemetry_event("emulator.semantic_state", payload)
         return payload
     except BizHawkBridgeError as exc:

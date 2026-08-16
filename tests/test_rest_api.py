@@ -121,6 +121,21 @@ def test_emulator_macro_open_menu_endpoint(monkeypatch: pytest.MonkeyPatch) -> N
     assert response.json()["validator_event"]["event_type"] == "macro_visual_verification"
 
 
+def test_emulator_semantic_state_endpoint_uses_memory_profile(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_bridge_request(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+        assert method == "bridge.info"
+        return {"ok": True, "method": method, "frame_count": 7}
+
+    monkeypatch.setattr("pokedex_completer_gen5.server.rest.bridge_request", fake_bridge_request)
+    client = TestClient(app)
+    response = client.get("/api/emulator/semantic-state")
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "unknown"
+    assert "menu_state" in response.json()["missing_profile_fields"]
+    assert response.json()["profile"]["profile_id"] == "white_us_eu"
+
+
 def test_emulator_memory_read_bytes_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_bridge_request(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
         assert method == "memory.read_bytes"
