@@ -12,6 +12,7 @@ from pokedex_completer_gen5.agents.planner import plan_next_tasks
 from pokedex_completer_gen5.agents.providers.factory import create_planner_provider
 from pokedex_completer_gen5.ai.benchmark import dry_run_model_routing
 from pokedex_completer_gen5.ai.router import router_payload
+from pokedex_completer_gen5.autonomy.loop import AutonomyBudget, AutonomyConfig, run_autonomy
 from pokedex_completer_gen5.backend.report_store import sha256_file, store_dex_report
 from pokedex_completer_gen5.dex.catchable_targets import build_catchable_inventory_report
 from pokedex_completer_gen5.dex.pc_living_dex import build_pc_living_dex_report
@@ -137,6 +138,31 @@ def init_db() -> None:
 def trajectory(limit: int = typer.Option(100, help="Number of recent JSONL events to print.")) -> None:
     """Print recent local JSONL trajectory events."""
     console.print_json(data={"events": read_jsonl_events(limit=limit)})
+
+
+@app.command("autonomous-run")
+def autonomous_run(
+    save_path: Path | None = typer.Option(None, help="Optional Gen 5 save path for Living Dex observation."),
+    game: str = typer.Option("white", help="black, white, black2, or white2."),
+    max_iterations: int = typer.Option(1, help="Maximum supervisor iterations."),
+    max_seconds: int = typer.Option(60, help="Wall-clock runtime budget."),
+    token_budget: int = typer.Option(0, help="Advisory LLM token budget; 0 means no LLM calls."),
+    execute: bool = typer.Option(False, help="Allow non-dry-run actions once action adapters exist."),
+) -> None:
+    """Run the durable autonomy supervisor scaffold."""
+    result = run_autonomy(
+        AutonomyConfig(
+            game=game,
+            save_path=save_path,
+            dry_run=not execute,
+            budget=AutonomyBudget(
+                max_iterations=max_iterations,
+                max_seconds=max_seconds,
+                token_budget=token_budget,
+            ),
+        )
+    )
+    console.print_json(data=result.to_dict())
 
 
 @app.command("model-router")
