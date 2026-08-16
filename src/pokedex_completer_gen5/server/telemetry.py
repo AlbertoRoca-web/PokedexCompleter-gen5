@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from fastapi import WebSocket
+from fastapi import WebSocket, WebSocketDisconnect
 
 from pokedex_completer_gen5.events import event_bus
 from pokedex_completer_gen5.persistence.store import persist_event
@@ -58,9 +58,12 @@ def recent_telemetry_events(limit: int = 50) -> list[dict[str, Any]]:
 async def telemetry_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
     last_seen = 0
-    while True:
-        events = recent_telemetry_events(limit=100)
-        if len(events) != last_seen:
-            await websocket.send_json({"type": "telemetry", "events": events})
-            last_seen = len(events)
-        await asyncio.sleep(1)
+    try:
+        while True:
+            events = recent_telemetry_events(limit=100)
+            if len(events) != last_seen:
+                await websocket.send_json({"type": "telemetry", "events": events})
+                last_seen = len(events)
+            await asyncio.sleep(1)
+    except WebSocketDisconnect:
+        return

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import os
 from pathlib import Path
 
 import typer
@@ -22,6 +24,8 @@ from pokedex_completer_gen5.trajectory import read_jsonl_events
 app = typer.Typer(help="Generation 5 physical inventory and catchable-target completer.")
 console = Console()
 load_environment()
+if os.name == "nt":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 @app.command()

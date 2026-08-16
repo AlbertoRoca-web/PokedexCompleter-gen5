@@ -439,16 +439,28 @@ async function macroReliabilityFetch() {
   await apiToPre('/api/emulator/macro/feedback', { method: 'GET' }, 'visualizerOutput');
 }
 
+let telemetrySocket = null;
+
 function connectTelemetry() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const socket = new WebSocket(`${protocol}//${location.host}/ws/telemetry`);
-  socket.onmessage = (event) => {
+  if (telemetrySocket && telemetrySocket.readyState === WebSocket.OPEN) return;
+  telemetrySocket = new WebSocket(`${protocol}//${location.host}/ws/telemetry`);
+  telemetrySocket.onmessage = (event) => {
     document.getElementById('telemetryOutput').textContent = event.data;
   };
-  socket.onerror = () => {
+  telemetrySocket.onerror = () => {
     document.getElementById('telemetryOutput').textContent = 'Telemetry WebSocket error.';
   };
 }
+
+function closeTelemetry() {
+  if (telemetrySocket && telemetrySocket.readyState === WebSocket.OPEN) {
+    telemetrySocket.close(1000, 'dashboard closing');
+  }
+}
+
+window.addEventListener('pagehide', closeTelemetry);
+window.addEventListener('beforeunload', closeTelemetry);
 
 async function voiceConfig() {
   const mode = document.getElementById('voiceMode').value;
