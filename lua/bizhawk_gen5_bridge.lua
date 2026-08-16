@@ -6,6 +6,7 @@
 local BRIDGE_VERSION = "0.2.0"
 local HOST = "127.0.0.1"
 local PORT = 8765
+local DEFAULT_SPEED_PERCENT = 400
 
 local function log(message)
     console.log("[gen5-bridge] " .. message)
@@ -43,6 +44,18 @@ local function extract_number(payload, key, default)
     return tonumber(payload:match(pattern)) or default
 end
 
+local function set_emulator_speed(percent)
+    percent = tonumber(percent) or DEFAULT_SPEED_PERCENT
+    local ok, result = pcall(function()
+        client.speedmode(percent)
+        return true
+    end)
+    if not ok then
+        return json_object({ ok = false, method = "emulator.set_speed", percent = percent, error = tostring(result) })
+    end
+    return json_object({ ok = result == true, method = "emulator.set_speed", percent = percent })
+end
+
 local function bridge_info()
     local frame_count = 0
     local approx_framerate = 0
@@ -64,7 +77,8 @@ local function bridge_info()
         core = "melonDS",
         frame_count = frame_count,
         approx_framerate = approx_framerate,
-        turbo = turbo
+        turbo = turbo,
+        configured_speed_percent = DEFAULT_SPEED_PERCENT
     })
 end
 
@@ -215,6 +229,67 @@ local function read_memory_bytes(domain, address, length)
     })
 end
 
+local function diff_memory_after_press(domain, address, length, button, press_frames, advance_frames, max_changes)
+    address = tonumber(address) or 0
+    length = tonumber(length) or 1
+    press_frames = tonumber(press_frames) or 5
+    advance_frames = tonumber(advance_frames) or 120
+    max_changes = tonumber(max_changes) or 500
+    if length < 1 then
+        length = 1
+    end
+    if length > 262144 then
+        length = 262144
+    end
+    if max_changes < 1 then
+        max_changes = 1
+    end
+    if max_changes > 2000 then
+        max_changes = 2000
+    end
+    local ok, result = pcall(function()
+        return with_memory_domain(domain, function()
+            local before = {}
+            for index = 0, length - 1 do
+                before[index + 1] = memory.read_u8(address + index)
+            end
+            if button ~= nil and button ~= "" then
+                press_button(button, press_frames)
+            end
+            frame_advance(advance_frames)
+            local changes = {}
+            local count = 0
+            for index = 0, length - 1 do
+                local after = memory.read_u8(address + index)
+                local previous = before[index + 1]
+                if previous ~= after then
+                    count = count + 1
+                    if #changes < max_changes then
+                        table.insert(changes, string.format("%X:%d:%d", address + index, previous, after))
+                    end
+                end
+            end
+            return tostring(count) .. "|" .. table.concat(changes, ",")
+        end)
+    end)
+    if not ok then
+        return json_object({ ok = false, method = "memory.diff_after_press", domain = domain, address = address, length = length, error = tostring(result) })
+    end
+    local count_text, changes_csv = result:match("([^|]*)|(.*)")
+    return json_object({
+        ok = true,
+        method = "memory.diff_after_press",
+        domain = domain,
+        address = address,
+        length = length,
+        button = button or "",
+        press_frames = press_frames,
+        advance_frames = advance_frames,
+        changed_count = tonumber(count_text) or 0,
+        changes_csv = changes_csv or ""
+    })
+end
+
 local function list_memory_domains()
     local ok, result = pcall(function()
         local domains = memory.getmemorydomainlist()
@@ -242,6 +317,8 @@ local function handle_request(payload)
     local response
     if method == "bridge.info" then
         response = bridge_info()
+    elseif method == "emulator.set_speed" then
+        response = set_emulator_speed(extract_number(payload, "percent", DEFAULT_SPEED_PERCENT))
     elseif method == "get_state" then
         response = current_state_stub()
     elseif method == "press" then
@@ -275,6 +352,16 @@ local function handle_request(payload)
             extract_number(payload, "address", 0),
             extract_number(payload, "length", 1)
         )
+    elseif method == "memory.diff_after_press" then
+        response = diff_memory_after_press(
+            extract_string(payload, "domain", ""),
+            extract_number(payload, "address", 0),
+            extract_number(payload, "length", 1),
+            extract_string(payload, "button", ""),
+            extract_number(payload, "press_frames", 5),
+            extract_number(payload, "advance_frames", 120),
+            extract_number(payload, "max_changes", 500)
+        )
     else
         response = json_object({ ok = false, error = "unknown method", method = method })
     end
@@ -286,6 +373,7 @@ end
 
 local function run_native_comm_bridge()
     comm.socketServerSetTimeout(50)
+    set_emulator_speed(DEFAULT_SPEED_PERCENT)
     log("using BizHawk native comm socket bridge: " .. tostring(comm.socketServerGetInfo()))
     comm.socketServerSend(json_object({ event = "ready", bridge_version = BRIDGE_VERSION }) .. "\n")
     while true do
@@ -305,6 +393,7 @@ local function run_luasocket_bridge(socket)
         return
     end
     server:settimeout(0)
+    set_emulator_speed(DEFAULT_SPEED_PERCENT)
     log("listening on " .. HOST .. ":" .. PORT .. " bridge v" .. BRIDGE_VERSION)
 
     while true do

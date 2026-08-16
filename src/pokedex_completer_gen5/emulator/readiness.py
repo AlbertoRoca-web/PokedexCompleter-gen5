@@ -7,6 +7,7 @@ from pokedex_completer_gen5.emulator.artifacts import screenshot_path
 from pokedex_completer_gen5.emulator.launcher import bizhawk_launch_config_from_env, launch_bizhawk
 from pokedex_completer_gen5.emulator.native_bridge import NativeBridgeError, native_bridge, wait_for_native_bridge
 from pokedex_completer_gen5.emulator.vision import analyze_screenshot
+from pokedex_completer_gen5.settings import get_settings
 
 
 @dataclass(frozen=True)
@@ -50,7 +51,7 @@ def ensure_emulator_ready(*, relaunch_if_needed: bool = True) -> EmulatorReadine
     probes.append(ReadinessProbe("wait_for_native_bridge", bool(wait_payload.get("ok")), wait_payload))
     probes.extend(_probe_current_bridge())
     return EmulatorReadinessResult(
-        ok=_all_ok(probes[-3:]),
+        ok=_all_ok(probes[-4:]),
         probes=probes,
         launched=launch_payload,
         retried_launch=True,
@@ -62,6 +63,8 @@ def _probe_current_bridge() -> list[ReadinessProbe]:
     bridge.start()
     probes: list[ReadinessProbe] = []
     try:
+        speed = bridge.request("emulator.set_speed", {"percent": get_settings().emulator.speed_percent})
+        probes.append(ReadinessProbe("emulator.set_speed", bool(speed.get("ok")), speed))
         info = bridge.request("bridge.info")
         probes.append(ReadinessProbe("bridge.info", True, info))
     except NativeBridgeError as exc:
@@ -85,6 +88,6 @@ def _probe_current_bridge() -> list[ReadinessProbe]:
 
 
 def _all_ok(probes: list[ReadinessProbe]) -> bool:
-    required = {"bridge.info", "get_state", "screenshot"}
+    required = {"emulator.set_speed", "bridge.info", "get_state", "screenshot"}
     ok_names = {probe.name for probe in probes if probe.ok}
     return required.issubset(ok_names)

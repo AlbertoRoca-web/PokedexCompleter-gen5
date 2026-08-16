@@ -121,6 +121,20 @@ def test_emulator_macro_open_menu_endpoint(monkeypatch: pytest.MonkeyPatch) -> N
     assert response.json()["validator_event"]["event_type"] == "macro_visual_verification"
 
 
+def test_emulator_speed_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_bridge_request(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+        assert method == "emulator.set_speed"
+        assert params == {"percent": 400}
+        return {"ok": True, "method": method, "percent": 400}
+
+    monkeypatch.setattr("pokedex_completer_gen5.server.rest.bridge_request", fake_bridge_request)
+    client = TestClient(app)
+    response = client.post("/api/emulator/speed", json={"percent": 400})
+
+    assert response.status_code == 200
+    assert response.json()["percent"] == 400
+
+
 def test_emulator_semantic_state_endpoint_uses_memory_profile(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_bridge_request(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
         assert method == "bridge.info"

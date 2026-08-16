@@ -122,6 +122,7 @@ DASHBOARD_HTML = """<!doctype html>
       <button type="button" onclick="memoryReadBytesFetch()">Read Bytes</button>
       <button type="button" onclick="romIdentityFetch()">ROM Identity</button>
       <button type="button" onclick="emulatorInfoFetch()">Emulator Info</button>
+      <button type="button" onclick="forceEmulatorSpeed()">Force 400% Speed</button>
     </div>
     <h3>Macros</h3>
     <div class="button-row">
@@ -438,6 +439,14 @@ async function romIdentityFetch() {
 
 async function emulatorInfoFetch() {
   await apiToPre('/api/emulator/info', { method: 'GET' }, 'emulatorOutput');
+}
+
+async function forceEmulatorSpeed() {
+  await apiToPre('/api/emulator/speed', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ percent: 400 })
+  }, 'emulatorOutput');
 }
 
 async function telemetryFetch() {

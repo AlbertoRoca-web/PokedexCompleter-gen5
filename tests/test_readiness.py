@@ -26,8 +26,10 @@ class FakeBridge:
         return {"connected": True}
 
     def request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if method == "emulator.set_speed":
+            return {"ok": True, "method": method, "percent": params["percent"] if params else 400}
         if method == "bridge.info":
-            return {"ok": True, "method": method, "turbo": True}
+            return {"ok": True, "method": method, "turbo": True, "configured_speed_percent": 400}
         if method == "get_state":
             return {"ok": True, "method": method}
         if method == "screenshot":
@@ -44,7 +46,12 @@ def test_ensure_emulator_ready_uses_existing_good_bridge(monkeypatch, tmp_path: 
     result = ensure_emulator_ready(relaunch_if_needed=False).to_dict()
 
     assert result["ok"] is True
-    assert [probe["name"] for probe in result["probes"]] == ["bridge.info", "get_state", "screenshot"]
+    assert [probe["name"] for probe in result["probes"]] == [
+        "emulator.set_speed",
+        "bridge.info",
+        "get_state",
+        "screenshot",
+    ]
 
 
 def test_ensure_emulator_ready_can_relaunch_after_failed_probe(monkeypatch, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]

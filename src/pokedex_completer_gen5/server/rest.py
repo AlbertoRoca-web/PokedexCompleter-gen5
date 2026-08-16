@@ -80,6 +80,10 @@ class EmulatorFrameAdvanceRequest(BaseModel):
     frames: int = Field(default=1, ge=1, le=600)
 
 
+class EmulatorSpeedRequest(BaseModel):
+    percent: int = Field(default=get_settings().emulator.speed_percent, ge=1, le=6400)
+
+
 class EmulatorMemoryReadRequest(BaseModel):
     domain: str = Field(default="", max_length=120)
     address: int = Field(ge=0, le=0xFFFFFFFF)
@@ -339,6 +343,15 @@ def emulator_semantic_state(profile_id: str = "white_us_eu") -> dict[str, Any]:
         return payload
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.semantic_state.error", exc) from exc
+
+
+@app.post("/api/emulator/speed")
+def emulator_speed(request: EmulatorSpeedRequest | None = None) -> dict[str, Any]:
+    try:
+        percent = request.percent if request else get_settings().emulator.speed_percent
+        return bridge_response("emulator.speed", bridge_request("emulator.set_speed", {"percent": percent}))
+    except BizHawkBridgeError as exc:
+        raise bridge_error("emulator.speed.error", exc) from exc
 
 
 @app.post("/api/emulator/press")

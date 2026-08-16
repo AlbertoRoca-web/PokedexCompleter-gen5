@@ -23,6 +23,7 @@ def test_emulator_settings_accept_env_aliases(monkeypatch) -> None:  # type: ign
 
     assert settings.native_bridge_port == 9876
     assert settings.pokemon_white_save == Path(r"D:\saves\POKEMON W.sav")
+    assert settings.speed_percent == 400
 
 
 def test_timing_settings_default_to_fast_profile() -> None:

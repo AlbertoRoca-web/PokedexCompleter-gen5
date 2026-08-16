@@ -58,6 +58,7 @@ class EmulatorSettings(BaseSettings):
     native_bridge_host: str = Field(default="127.0.0.1", alias="BIZHAWK_NATIVE_BRIDGE_HOST")
     native_bridge_port: int = Field(default=8766, alias="BIZHAWK_NATIVE_BRIDGE_PORT")
     native_bridge_timeout_seconds: float = Field(default=5.0, alias="BIZHAWK_NATIVE_BRIDGE_TIMEOUT_SECONDS")
+    speed_percent: int = Field(default=400, alias="BIZHAWK_SPEED_PERCENT")
 
 
 class TimingSettings(BaseSettings):
