@@ -78,6 +78,7 @@ DASHBOARD_HTML = """<!doctype html>
     <h2>Emulator Control Skeleton</h2>
     <p class="muted">Requires BizHawk Lua bridge listening on localhost. Safe buttons only for now.</p>
     <div class="button-row">
+      <button type="button" onclick="launchBizHawk()">Launch BizHawk + White</button>
       <button type="button" onclick="emulatorState()">Get State</button>
       <button type="button" onclick="pressButton('A')">A</button>
       <button type="button" onclick="pressButton('B')">B</button>
@@ -205,6 +206,11 @@ function fillSavePath(path, game) {
   document.getElementById('savePath').value = path;
   document.getElementById('game').value = game;
   logUiEvent('quick_fill_save_path', { path, game });
+}
+
+async function launchBizHawk() {
+  await logUiEvent('emulator_launch_clicked', {});
+  await emulatorPost('/api/emulator/launch', {});
 }
 
 async function emulatorState() {

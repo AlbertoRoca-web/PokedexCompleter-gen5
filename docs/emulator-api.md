@@ -19,6 +19,7 @@ Expected default endpoint:
 ## REST endpoints
 
 ```text
+POST /api/emulator/launch
 GET  /api/emulator/state
 POST /api/emulator/press
 POST /api/emulator/press-sequence
@@ -31,6 +32,13 @@ GET  /api/emulator/screenshot
 ```
 
 Examples:
+
+```json
+POST /api/emulator/launch
+{}
+```
+
+This launches BizHawk with the configured Pokemon White ROM. It does not yet auto-run the Lua bridge; load the Lua bridge from BizHawk's Lua Console if it is not already running.
 
 ```json
 POST /api/emulator/press

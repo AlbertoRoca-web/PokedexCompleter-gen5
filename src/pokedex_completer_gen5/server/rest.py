@@ -13,6 +13,7 @@ from pokedex_completer_gen5.agents.validator_store import recent_validator_event
 from pokedex_completer_gen5.agents.voice import build_voice_config, create_realtime_session
 from pokedex_completer_gen5.dex.pc_living_dex import build_pc_living_dex_report
 from pokedex_completer_gen5.emulator.bizhawk_client import BizHawkBridgeError, BizHawkClient, bizhawk_config_from_env
+from pokedex_completer_gen5.emulator.launcher import bizhawk_launch_config_from_env, launch_bizhawk
 from pokedex_completer_gen5.integrations.env import load_environment
 from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
 from pokedex_completer_gen5.saveio.physical_report import build_save_payload, build_save_report
@@ -26,6 +27,10 @@ from pokedex_completer_gen5.server.telemetry import (
 load_environment()
 
 app = FastAPI(title="PokedexCompleter Gen 5", version=__version__)
+
+
+class EmulatorLaunchRequest(BaseModel):
+    rom_path: Path | None = None
 
 
 class EmulatorPressRequest(BaseModel):
@@ -128,6 +133,19 @@ def telemetry(limit: int = 50) -> dict[str, Any]:
 def ui_event(request: UiEventRequest) -> dict[str, Any]:
     event = record_telemetry_event(f"ui.{request.event_type}", request.payload)
     return event.to_dict()
+
+
+@app.post("/api/emulator/launch")
+def emulator_launch(request: EmulatorLaunchRequest | None = None) -> dict[str, Any]:
+    try:
+        config = bizhawk_launch_config_from_env(rom_path=request.rom_path if request else None)
+        payload = launch_bizhawk(config)
+        record_telemetry_event("emulator.launch", payload)
+        return payload
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to launch BizHawk: {exc}") from exc
 
 
 @app.get("/api/emulator/state")
