@@ -112,6 +112,7 @@ DASHBOARD_HTML = """<!doctype html>
       <button type="button" onclick="checkpointLoad()">Load CP</button>
       <button type="button" onclick="emulatorScreenshot()">Screenshot</button>
       <button type="button" onclick="screenshotAnalysisFetch()">Screenshot Analysis</button>
+      <button type="button" onclick="waitInformativeScreenshot()">Wait Informative Screenshot</button>
       <button type="button" onclick="artifactListFetch()">Artifacts</button>
       <button type="button" onclick="memoryDomainsFetch()">Memory Domains</button>
       <button type="button" onclick="romIdentityFetch()">ROM Identity</button>
@@ -324,8 +325,10 @@ function renderMacroStatus(data) {
   latestMacroRunId = data.id;
   const status = document.getElementById('macroStatus');
   status.className = 'status-panel status-warn';
+  const visualStatus = data.verification?.status || data.verification?.mode || 'unknown';
   status.innerHTML = `<strong>${data.macro_name}</strong><br>` +
     `Expected: ${data.expected_result}<br>` +
+    `Visual: ${visualStatus}<br>` +
     `<span class="muted">Status: ${data.status}. Click Macro Worked/Failed/Uncertain.</span>`;
 }
 
@@ -355,6 +358,17 @@ async function emulatorScreenshot() {
 
 async function screenshotAnalysisFetch() {
   await apiToPre('/api/emulator/screenshot/latest-analysis', { method: 'GET' }, 'emulatorOutput');
+}
+
+async function waitInformativeScreenshot() {
+  await apiToPre('/api/emulator/screenshot/wait-informative', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label: 'dashboard', max_attempts: 5, advance_frames: 30 })
+  }, 'emulatorOutput');
+  const img = document.getElementById('latestScreenshot');
+  img.src = '/api/emulator/screenshot/latest.png?cacheBust=' + Date.now();
+  img.style.display = 'block';
 }
 
 async function artifactListFetch() {

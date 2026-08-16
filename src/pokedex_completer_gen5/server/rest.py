@@ -24,6 +24,7 @@ from pokedex_completer_gen5.emulator.macros import run_close_menu_macro, run_ope
 from pokedex_completer_gen5.emulator.native_bridge import NativeBridgeError, native_bridge, wait_for_native_bridge
 from pokedex_completer_gen5.emulator.rom import identify_rom
 from pokedex_completer_gen5.emulator.vision import analyze_screenshot
+from pokedex_completer_gen5.emulator.visual_wait import capture_informative_screenshot
 from pokedex_completer_gen5.integrations.env import load_environment
 from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
 from pokedex_completer_gen5.persistence.store import (
@@ -72,6 +73,14 @@ class EmulatorFrameAdvanceRequest(BaseModel):
 
 class EmulatorMacroRequest(BaseModel):
     wait_frames: int = Field(default=20, ge=1, le=180)
+    visual_max_attempts: int = Field(default=3, ge=1, le=10)
+    visual_advance_frames: int = Field(default=30, ge=1, le=300)
+
+
+class InformativeScreenshotRequest(BaseModel):
+    label: str = Field(default="manual", min_length=1, max_length=80)
+    max_attempts: int = Field(default=5, ge=1, le=20)
+    advance_frames: int = Field(default=30, ge=1, le=600)
 
 
 class EmulatorMacroFeedbackRequest(BaseModel):
@@ -323,12 +332,48 @@ def emulator_frame_advance(request: EmulatorFrameAdvanceRequest) -> dict[str, An
         raise bridge_error("emulator.frame_advance.error", exc) from exc
 
 
+def _run_macro_with_visual_verification(
+    macro_name: str,
+    macro_runner: Any,
+    request: EmulatorMacroRequest | None,
+) -> dict[str, Any]:
+    visual_before = capture_informative_screenshot(
+        bridge_request,
+        label=f"before-{macro_name}",
+        max_attempts=request.visual_max_attempts if request else 3,
+        advance_frames=request.visual_advance_frames if request else 30,
+    )
+    macro = macro_runner(bridge_request, wait_frames=request.wait_frames if request else 20)
+    visual_after = capture_informative_screenshot(
+        bridge_request,
+        label=f"after-{macro_name}",
+        max_attempts=request.visual_max_attempts if request else 3,
+        advance_frames=request.visual_advance_frames if request else 30,
+    )
+    payload = macro.to_dict()
+    payload["verification"] = {
+        "mode": "visual-informative-v1",
+        "before": visual_before.to_dict(),
+        "after": visual_after.to_dict(),
+        "status": "visual-ready" if visual_after.ok else "visual-not-informative",
+        "note": "This checks screenshot usefulness, not menu semantics yet.",
+    }
+    persist_macro_attempt(payload)
+    status = "accepted" if visual_after.ok else "needs-human"
+    validator_event = record_validator_event(
+        "macro_visual_verification",
+        f"{macro_name} visual check: {payload['verification']['status']}",
+        payload={"macro_run_id": payload["id"], "macro_name": macro_name, "verification": payload["verification"]},
+        status=status,  # type: ignore[arg-type]
+    )
+    payload["validator_event"] = validator_event.to_dict()
+    return payload
+
+
 @app.post("/api/emulator/macro/open-menu")
 def emulator_macro_open_menu(request: EmulatorMacroRequest | None = None) -> dict[str, Any]:
     try:
-        macro = run_open_menu_macro(bridge_request, wait_frames=request.wait_frames if request else 20)
-        payload = macro.to_dict()
-        persist_macro_attempt(payload)
+        payload = _run_macro_with_visual_verification("open_menu", run_open_menu_macro, request)
         record_telemetry_event("emulator.macro.open_menu", payload)
         return payload
     except BizHawkBridgeError as exc:
@@ -338,9 +383,7 @@ def emulator_macro_open_menu(request: EmulatorMacroRequest | None = None) -> dic
 @app.post("/api/emulator/macro/close-menu")
 def emulator_macro_close_menu(request: EmulatorMacroRequest | None = None) -> dict[str, Any]:
     try:
-        macro = run_close_menu_macro(bridge_request, wait_frames=request.wait_frames if request else 20)
-        payload = macro.to_dict()
-        persist_macro_attempt(payload)
+        payload = _run_macro_with_visual_verification("close_menu", run_close_menu_macro, request)
         record_telemetry_event("emulator.macro.close_menu", payload)
         return payload
     except BizHawkBridgeError as exc:
@@ -454,6 +497,29 @@ def emulator_latest_screenshot_analysis() -> dict[str, Any]:
         return analyze_screenshot(path)
     except RuntimeError as exc:
         raise HTTPException(status_code=501, detail=str(exc)) from exc
+
+
+@app.post("/api/emulator/screenshot/wait-informative")
+def emulator_wait_informative_screenshot(request: InformativeScreenshotRequest | None = None) -> dict[str, Any]:
+    try:
+        result = capture_informative_screenshot(
+            bridge_request,
+            label=request.label if request else "manual",
+            max_attempts=request.max_attempts if request else 5,
+            advance_frames=request.advance_frames if request else 30,
+        )
+        payload = result.to_dict()
+        validator_event = record_validator_event(
+            "screenshot_visual_verification",
+            f"Informative screenshot wait: {payload['reason']}",
+            payload=payload,
+            status="accepted" if result.ok else "needs-human",
+        )
+        payload["validator_event"] = validator_event.to_dict()
+        record_telemetry_event("emulator.screenshot.wait_informative", payload)
+        return payload
+    except BizHawkBridgeError as exc:
+        raise bridge_error("emulator.screenshot.wait_informative.error", exc) from exc
 
 
 @app.get("/api/emulator/memory/domains")

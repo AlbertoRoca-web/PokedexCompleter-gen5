@@ -15,6 +15,8 @@ VALIDATOR_EVENT_TYPES = (
     "capture_attempt",
     "living_dex_progress",
     "stuck_claim",
+    "macro_visual_verification",
+    "screenshot_visual_verification",
 )
 
 
