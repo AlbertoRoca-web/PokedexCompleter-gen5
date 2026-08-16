@@ -33,6 +33,16 @@ local function json_object(fields)
     return "{" .. table.concat(parts, ",") .. "}"
 end
 
+local function extract_string(payload, key, default)
+    local pattern = '"' .. key .. '"%s*:%s*"([^"]+)"'
+    return payload:match(pattern) or default
+end
+
+local function extract_number(payload, key, default)
+    local pattern = '"' .. key .. '"%s*:%s*(%d+)'
+    return tonumber(payload:match(pattern)) or default
+end
+
 local function current_state_stub()
     return json_object({
         bridge_version = BRIDGE_VERSION,
@@ -92,80 +102,86 @@ local function screenshot_stub()
     return json_object({ ok = false, method = "screenshot", error = "screenshot support pending" })
 end
 
-local function extract_string(payload, key, default)
-    local pattern = '"' .. key .. '"%s*:%s*"([^"]+)"'
-    return payload:match(pattern) or default
-end
-
-local function extract_number(payload, key, default)
-    local pattern = '"' .. key .. '"%s*:%s*(%d+)'
-    return tonumber(payload:match(pattern)) or default
-end
-
 local function handle_request(payload)
     local method = extract_string(payload, "method", "")
+    local request_id = extract_string(payload, "id", "")
+    local response
     if method == "get_state" then
-        return current_state_stub()
-    end
-    if method == "press" then
+        response = current_state_stub()
+    elseif method == "press" then
         local button = extract_string(payload, "button", "A")
         local frames = extract_number(payload, "frames", 1)
-        return press_button(button, frames)
-    end
-    if method == "press_sequence" then
+        response = press_button(button, frames)
+    elseif method == "press_sequence" then
         local buttons_csv = extract_string(payload, "buttons_csv", "")
         local frames = extract_number(payload, "frames", 1)
         local gap_frames = extract_number(payload, "gap_frames", 1)
-        return press_sequence(buttons_csv, frames, gap_frames)
+        response = press_sequence(buttons_csv, frames, gap_frames)
+    elseif method == "frame_advance" then
+        response = frame_advance(extract_number(payload, "frames", 1))
+    elseif method == "pause" then
+        response = pause_emulator()
+    elseif method == "resume" then
+        response = resume_emulator()
+    elseif method == "save_checkpoint" then
+        response = checkpoint_stub("save_checkpoint")
+    elseif method == "load_checkpoint" then
+        response = checkpoint_stub("load_checkpoint")
+    elseif method == "screenshot" then
+        response = screenshot_stub()
+    else
+        response = json_object({ ok = false, error = "unknown method", method = method })
     end
-    if method == "frame_advance" then
-        return frame_advance(extract_number(payload, "frames", 1))
+    if request_id ~= "" then
+        response = response:gsub("^%{", '{"id":"' .. json_escape(request_id) .. '",', 1)
     end
-    if method == "pause" then
-        return pause_emulator()
+    return response
+end
+
+local function run_native_comm_bridge()
+    comm.socketServerSetTimeout(50)
+    log("using BizHawk native comm socket bridge: " .. tostring(comm.socketServerGetInfo()))
+    comm.socketServerSend(json_object({ event = "ready", bridge_version = BRIDGE_VERSION }) .. "\n")
+    while true do
+        local payload = comm.socketServerResponse()
+        if payload and payload ~= "" then
+            local response = handle_request(payload)
+            comm.socketServerSend(response .. "\n")
+        end
+        emu.frameadvance()
     end
-    if method == "resume" then
-        return resume_emulator()
+end
+
+local function run_luasocket_bridge(socket)
+    local server, err = socket.bind(HOST, PORT)
+    if not server then
+        log("failed to bind " .. HOST .. ":" .. PORT .. " - " .. tostring(err))
+        return
     end
-    if method == "save_checkpoint" then
-        return checkpoint_stub("save_checkpoint")
+    server:settimeout(0)
+    log("listening on " .. HOST .. ":" .. PORT .. " bridge v" .. BRIDGE_VERSION)
+
+    while true do
+        local client = server:accept()
+        if client then
+            client:settimeout(0.25)
+            local payload = client:receive("*l")
+            if payload then
+                local response = handle_request(payload)
+                client:send(response .. "\n")
+            else
+                client:send(json_object({ ok = false, error = "empty request" }) .. "\n")
+            end
+            client:close()
+        end
+        emu.frameadvance()
     end
-    if method == "load_checkpoint" then
-        return checkpoint_stub("load_checkpoint")
-    end
-    if method == "screenshot" then
-        return screenshot_stub()
-    end
-    return json_object({ ok = false, error = "unknown method", method = method })
 end
 
 local has_socket, socket = pcall(require, "socket")
-if not has_socket then
-    log("LuaSocket not available. TCP bridge disabled; functions are loaded for manual use.")
-    log("Try manual smoke call: press_button('A', 2)")
-    return
-end
-
-local server, err = socket.bind(HOST, PORT)
-if not server then
-    log("failed to bind " .. HOST .. ":" .. PORT .. " - " .. tostring(err))
-    return
-end
-server:settimeout(0)
-log("listening on " .. HOST .. ":" .. PORT .. " bridge v" .. BRIDGE_VERSION)
-
-while true do
-    local client = server:accept()
-    if client then
-        client:settimeout(0.25)
-        local payload = client:receive("*l")
-        if payload then
-            local response = handle_request(payload)
-            client:send(response .. "\n")
-        else
-            client:send(json_object({ ok = false, error = "empty request" }) .. "\n")
-        end
-        client:close()
-    end
-    emu.frameadvance()
+if has_socket then
+    run_luasocket_bridge(socket)
+else
+    log("LuaSocket not available; falling back to BizHawk native comm socket bridge.")
+    run_native_comm_bridge()
 end

@@ -115,7 +115,8 @@ def test_emulator_bridge_error_returns_hint(monkeypatch: pytest.MonkeyPatch) -> 
 
     assert response.status_code == 503
     assert response.json()["detail"]["error"] == "connection refused"
-    assert "Start BizHawk" in response.json()["detail"]["hint"]
+    assert "Launch from the website" in response.json()["detail"]["hint"]
+    assert "native_bridge" in response.json()["detail"]
 
 
 def test_emulator_press_endpoint_uses_bridge_client(monkeypatch: pytest.MonkeyPatch) -> None:

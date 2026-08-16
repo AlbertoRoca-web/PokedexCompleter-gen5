@@ -44,7 +44,7 @@ def test_launch_bizhawk_builds_process(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert calls
     args, kwargs = calls[0]
     command = args[0]
-    assert command == [str(exe), "--lua", str(lua), str(rom)]
+    assert command == [str(exe), "--socket-ip", "127.0.0.1", "--socket-port", "8766", "--lua", str(lua), str(rom)]
     assert kwargs["cwd"] == str(exe.parent)
     assert saveram.read_bytes() == b"completed-save"
     assert result["installed_save"]["match"] is True

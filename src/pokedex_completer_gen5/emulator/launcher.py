@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from pokedex_completer_gen5.emulator.native_bridge import native_bridge_config_from_env
+
 DEFAULT_BIZHAWK_EXE = Path(r"D:\alroc\codepup\tools\BizHawk-2.11.1\EmuHawk.exe")
 DEFAULT_WHITE_ROM = Path(
     r"C:\Users\alroc\Downloads\Pokemon - White Version (USA, Europe) (NDSi Enhanced)"
@@ -106,7 +108,16 @@ def launch_bizhawk(
     stopped_existing = stop_existing_bizhawk(config) if restart_existing else None
     installed_save = install_bizhawk_save(config) if install_save else None
 
-    args = [str(config.bizhawk_exe), "--lua", str(config.lua_script)]
+    native_config = native_bridge_config_from_env()
+    args = [
+        str(config.bizhawk_exe),
+        "--socket-ip",
+        native_config.host,
+        "--socket-port",
+        str(native_config.port),
+        "--lua",
+        str(config.lua_script),
+    ]
     if config.rom_path is not None:
         # BizHawk help says the ROM should be passed last. Because of course it does.
         args.append(str(config.rom_path))

@@ -321,8 +321,9 @@ function renderEmulatorStatus(data) {
   const status = document.getElementById('emulatorStatus');
   const diagnostics = data.diagnostics ?? data;
   const diagnosis = diagnostics.diagnosis;
-  const bridgeAfterLaunch = data.bridge_after_launch;
-  if (!diagnosis && !bridgeAfterLaunch && !data.detail) return;
+  const bridgeAfterLaunch = data.native_bridge_after_launch ?? data.bridge_after_launch;
+  const nativeBridge = diagnostics.native_bridge ?? data.native_bridge;
+  if (!diagnosis && !bridgeAfterLaunch && !nativeBridge && !data.detail) return;
 
   let html = '';
   let css = 'status-panel status-warn';
@@ -338,8 +339,13 @@ function renderEmulatorStatus(data) {
     if (detail.hint) html += `<span class="muted">Next: ${detail.hint}</span>`;
   }
   if (bridgeAfterLaunch) {
-    html += `<br><span class="muted">Bridge wait: ${bridgeAfterLaunch.ok ? 'connected' : 'not connected'} `;
+    html += `<br><span class="muted">Native bridge wait: ${bridgeAfterLaunch.ok ? 'connected' : 'not connected'} `;
     html += `after ${bridgeAfterLaunch.attempts} attempt(s).</span>`;
+  }
+  if (nativeBridge) {
+    html += `<br><span class="muted">Native bridge server: `;
+    html += `${nativeBridge.running ? 'running' : 'stopped'}, `;
+    html += `${nativeBridge.connected ? 'connected' : 'not connected'} on port ${nativeBridge.port}</span>`;
   }
   status.className = css;
   status.innerHTML = html;
