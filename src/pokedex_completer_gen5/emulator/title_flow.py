@@ -81,11 +81,12 @@ def run_resume_saved_game_from_title(
     if before_type != "menu-like":
         phases.append(_press_phase(bridge_request, "press-start-on-title", "start", press_frames=press_frames))
         phases.append(_advance_phase(bridge_request, "minimum-wait-after-start", wait_after_start_frames))
-        after_start, after_start_phases = _observe_until_changed(
+        after_start, after_start_phases = _observe_until_screen_type(
             bridge_request,
             reference=before,
             label=f"title-flow-{flow_id}-after-start",
-            phase_prefix="after-start",
+            phase_prefix="after-start-menu-ready",
+            accepted_types={"menu-like"},
             max_change_attempts=change_max_attempts,
             change_advance_frames=change_advance_frames,
             visual_max_attempts=visual_max_attempts,
@@ -189,6 +190,34 @@ def _screenshot_phase(name: str, result: InformativeScreenshotResult) -> TitleFl
         result={"ok": result.ok, "reason": result.reason},
         screenshot=result.to_dict(),
     )
+
+
+def _observe_until_screen_type(
+    bridge_request: BridgeRequest,
+    *,
+    reference: InformativeScreenshotResult,
+    label: str,
+    phase_prefix: str,
+    accepted_types: set[str],
+    max_change_attempts: int,
+    change_advance_frames: int,
+    visual_max_attempts: int,
+    visual_advance_frames: int,
+) -> tuple[InformativeScreenshotResult, list[TitleFlowPhase]]:
+    phases: list[TitleFlowPhase] = []
+    latest: InformativeScreenshotResult | None = None
+    for attempt in range(1, max_change_attempts + 1):
+        phases.append(_advance_phase(bridge_request, f"{phase_prefix}-advance-{attempt}", change_advance_frames))
+        latest = capture_informative_screenshot(
+            bridge_request,
+            label=f"{label}-type-{attempt}",
+            max_attempts=visual_max_attempts,
+            advance_frames=visual_advance_frames,
+        )
+        phases.append(_screenshot_phase(f"{phase_prefix}-{attempt}", latest))
+        if _screens_changed(reference, latest) and _latest_type(latest) in accepted_types:
+            return latest, phases
+    return latest or reference, phases
 
 
 def _press_until_changed(
