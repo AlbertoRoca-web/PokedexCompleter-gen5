@@ -76,7 +76,10 @@ DASHBOARD_HTML = """<!doctype html>
 
   <section class="card">
     <h2>Emulator Control Skeleton</h2>
-    <p class="muted">Requires BizHawk Lua bridge listening on localhost. Safe buttons only for now.</p>
+    <p class="muted">
+      Launch starts BizHawk + White with the Lua bridge via --lua.
+      If controls fail, check Lua Console.
+    </p>
     <div class="button-row">
       <button type="button" onclick="launchBizHawk()">Launch BizHawk + White</button>
       <button type="button" onclick="emulatorState()">Get State</button>

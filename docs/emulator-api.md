@@ -38,7 +38,7 @@ POST /api/emulator/launch
 {}
 ```
 
-This launches BizHawk with the configured Pokemon White ROM. It does not yet auto-run the Lua bridge; load the Lua bridge from BizHawk's Lua Console if it is not already running.
+This launches BizHawk with the configured Pokemon White ROM and passes the configured Lua bridge using BizHawk's `--lua` option. If controls still fail, check BizHawk's Lua Console output.
 
 ```json
 POST /api/emulator/press

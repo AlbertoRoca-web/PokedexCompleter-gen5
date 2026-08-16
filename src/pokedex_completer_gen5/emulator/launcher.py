@@ -42,9 +42,12 @@ def launch_bizhawk(config: BizHawkLaunchConfig) -> dict[str, Any]:
         raise FileNotFoundError(f"BizHawk executable not found: {config.bizhawk_exe}")
     if config.rom_path is not None and not config.rom_path.exists():
         raise FileNotFoundError(f"ROM not found: {config.rom_path}")
+    if not config.lua_script.exists():
+        raise FileNotFoundError(f"Lua bridge script not found: {config.lua_script}")
 
-    args = [str(config.bizhawk_exe)]
+    args = [str(config.bizhawk_exe), "--lua", str(config.lua_script)]
     if config.rom_path is not None:
+        # BizHawk help says the ROM should be passed last. Because of course it does.
         args.append(str(config.rom_path))
 
     process = subprocess.Popen(  # noqa: S603 - local user-configured executable launcher.
@@ -58,7 +61,10 @@ def launch_bizhawk(config: BizHawkLaunchConfig) -> dict[str, Any]:
         "ok": True,
         "pid": process.pid,
         "launched": config.to_dict(),
-        "next_step": "In BizHawk, open Tools -> Lua Console and load the bridge script if it is not already running.",
+        "next_step": (
+            "BizHawk was launched with --lua. "
+            "If controls still fail, check the Lua Console for bridge errors."
+        ),
     }
 
 
