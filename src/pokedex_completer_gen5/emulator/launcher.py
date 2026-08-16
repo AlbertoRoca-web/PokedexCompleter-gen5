@@ -77,11 +77,16 @@ def stop_existing_bizhawk(config: BizHawkLaunchConfig) -> dict[str, Any]:
         text=True,
         check=False,
     )
+    stderr = result.stderr.strip()
+    stdout = result.stdout.strip()
+    no_existing_process = result.returncode == 128 and "not found" in stderr.lower()
     return {
         "attempted": True,
+        "ok": result.returncode == 0 or no_existing_process,
+        "status": "no_existing_process" if no_existing_process else "stopped_or_attempted",
         "exit_code": result.returncode,
-        "stdout": result.stdout.strip(),
-        "stderr": result.stderr.strip(),
+        "stdout": stdout,
+        "stderr": "" if no_existing_process else stderr,
     }
 
 

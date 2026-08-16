@@ -51,6 +51,29 @@ def test_launch_bizhawk_builds_process(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert result["stopped_existing"] == {"attempted": True, "exit_code": 0}
 
 
+def test_stop_existing_bizhawk_normalizes_process_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class FakeCompletedProcess:
+        returncode = 128
+        stdout = ""
+        stderr = 'ERROR: The process "EmuHawk.exe" not found.'
+
+    monkeypatch.setattr("pokedex_completer_gen5.emulator.launcher.os.name", "nt")
+    monkeypatch.setattr(
+        "pokedex_completer_gen5.emulator.launcher.subprocess.run",
+        lambda *args, **kwargs: FakeCompletedProcess(),
+    )
+
+    config = BizHawkLaunchConfig(tmp_path / "EmuHawk.exe", None, tmp_path / "bridge.lua", None, None)
+    result = stop_existing_bizhawk(config)
+
+    assert result["ok"] is True
+    assert result["status"] == "no_existing_process"
+    assert result["stderr"] == ""
+
+
 def test_stop_existing_bizhawk_reports_non_windows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr("pokedex_completer_gen5.emulator.launcher.os.name", "posix")
     config = BizHawkLaunchConfig(tmp_path / "EmuHawk.exe", None, tmp_path / "bridge.lua", None, None)
