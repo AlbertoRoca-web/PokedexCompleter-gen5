@@ -38,7 +38,7 @@ POST /api/emulator/launch
 {}
 ```
 
-This launches BizHawk with the configured Pokemon White ROM and passes the configured Lua bridge using BizHawk's `--lua` option. If controls still fail, check BizHawk's Lua Console output.
+This installs the configured completed White save into BizHawk's NDS SaveRAM path, launches BizHawk with the configured Pokemon White ROM, and passes the configured Lua bridge using BizHawk's `--lua` option. If controls still fail, check BizHawk's Lua Console output.
 
 ```json
 POST /api/emulator/press

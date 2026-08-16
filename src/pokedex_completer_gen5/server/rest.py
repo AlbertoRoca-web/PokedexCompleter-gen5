@@ -31,6 +31,8 @@ app = FastAPI(title="PokedexCompleter Gen 5", version=__version__)
 
 class EmulatorLaunchRequest(BaseModel):
     rom_path: Path | None = None
+    install_save: bool = True
+    restart_existing: bool = True
 
 
 class EmulatorPressRequest(BaseModel):
@@ -139,7 +141,11 @@ def ui_event(request: UiEventRequest) -> dict[str, Any]:
 def emulator_launch(request: EmulatorLaunchRequest | None = None) -> dict[str, Any]:
     try:
         config = bizhawk_launch_config_from_env(rom_path=request.rom_path if request else None)
-        payload = launch_bizhawk(config)
+        payload = launch_bizhawk(
+            config,
+            install_save=request.install_save if request else True,
+            restart_existing=request.restart_existing if request else True,
+        )
         record_telemetry_event("emulator.launch", payload)
         return payload
     except FileNotFoundError as exc:
