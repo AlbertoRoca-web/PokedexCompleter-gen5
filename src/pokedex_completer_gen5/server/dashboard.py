@@ -37,10 +37,11 @@ DASHBOARD_HTML = """<!doctype html>
   <section class="card">
     <h2>PC Living Dex Report</h2>
     <label for="savePath">Save path</label>
-    <input id="savePath" placeholder="Paste a full .sav path here, example: D:\\alroc\\codepup\\rolo3\\POKEMON W.sav">
+    <input id="savePath"
+      placeholder="Paste a full .sav path here, example: D:\\Users\\alroc\\Downloads\\rolplete\\POKEMON W.sav">
     <div class="button-row">
-      <button type="button" onclick="fillSavePath('D:\\alroc\\codepup\\rolo3\\POKEMON W.sav', 'white')">
-        Use White sample path
+      <button type="button" onclick="fillSavePath('D:\\Users\\alroc\\Downloads\\rolplete\\POKEMON W.sav', 'white')">
+        Use completed White save path
       </button>
       <button type="button" onclick="fillSavePath('D:\\alroc\\codepup\\POKEMON B2.sav', 'black2')">
         Use Black 2 sample path

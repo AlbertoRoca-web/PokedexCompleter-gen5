@@ -24,7 +24,7 @@ Not allowed:
 Tests may reference local paths such as:
 
 ```text
-D:\alroc\codepup\rolo3\POKEMON W.sav
+D:\Users\alroc\Downloads\rolplete\POKEMON W.sav
 D:\alroc\codepup\POKEMON B2.sav
 ```
 
