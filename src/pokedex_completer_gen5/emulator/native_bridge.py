@@ -129,6 +129,7 @@ class NativeBridgeServer:
         return remainder
 
     def _handle_message(self, message: str) -> None:
+        message = _strip_bizhawk_frame_prefix(message)
         try:
             decoded = json.loads(message)
         except json.JSONDecodeError:
@@ -142,6 +143,15 @@ class NativeBridgeServer:
         if isinstance(request_id, str):
             with self._lock:
                 self._results[request_id] = decoded
+
+
+def _strip_bizhawk_frame_prefix(message: str) -> str:
+    length_text, separator, payload = message.partition(" ")
+    if separator and length_text.isdigit():
+        expected_length = int(length_text)
+        if len(payload) == expected_length:
+            return payload
+    return message
 
 
 def _frame_for_bizhawk(payload: str) -> bytes:

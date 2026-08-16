@@ -168,12 +168,24 @@ def ui_event(request: UiEventRequest) -> dict[str, Any]:
     return event.to_dict()
 
 
+def add_native_diagnosis(payload: dict[str, Any]) -> dict[str, Any]:
+    bridge = native_bridge()
+    native_status = bridge.status()
+    payload["native_bridge"] = native_status
+    if native_status["connected"]:
+        payload["diagnosis"] = {
+            "status": "ready-native",
+            "message": "BizHawk is connected through the native comm bridge on port 8766.",
+            "next_step": "Click Get State, then try A/B/D-pad buttons.",
+        }
+    return payload
+
+
 @app.get("/api/emulator/diagnostics")
 def emulator_diagnostics() -> dict[str, Any]:
     launch_config = bizhawk_launch_config_from_env()
     bridge_config = bizhawk_config_from_env()
-    payload = build_emulator_diagnostics(launch_config, bridge_config)
-    payload["native_bridge"] = native_bridge().status()
+    payload = add_native_diagnosis(build_emulator_diagnostics(launch_config, bridge_config))
     record_telemetry_event("emulator.diagnostics", payload)
     return payload
 
@@ -191,8 +203,7 @@ def emulator_launch(request: EmulatorLaunchRequest | None = None) -> dict[str, A
         if request is None or request.wait_for_bridge:
             payload["native_bridge_after_launch"] = wait_for_native_bridge()
             payload["legacy_bridge_after_launch"] = wait_for_bridge(bizhawk_config_from_env(), timeout_seconds=1)
-            payload["diagnostics"] = build_emulator_diagnostics(config, bizhawk_config_from_env())
-            payload["diagnostics"]["native_bridge"] = native_bridge().status()
+            payload["diagnostics"] = add_native_diagnosis(build_emulator_diagnostics(config, bizhawk_config_from_env()))
         record_telemetry_event("emulator.launch", payload)
         return payload
     except FileNotFoundError as exc:
