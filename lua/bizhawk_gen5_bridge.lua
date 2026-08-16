@@ -94,12 +94,44 @@ local function resume_emulator()
     return json_object({ ok = true, method = "resume" })
 end
 
-local function checkpoint_stub(method)
-    return json_object({ ok = false, method = method, error = "checkpoint support pending" })
+local function save_checkpoint(path)
+    if path == nil or path == "" then
+        return json_object({ ok = false, method = "save_checkpoint", error = "path is required" })
+    end
+    local ok, result = pcall(function()
+        return savestate.save(path, true)
+    end)
+    if not ok then
+        return json_object({ ok = false, method = "save_checkpoint", path = path, error = tostring(result) })
+    end
+    return json_object({ ok = result == true, method = "save_checkpoint", path = path })
 end
 
-local function screenshot_stub()
-    return json_object({ ok = false, method = "screenshot", error = "screenshot support pending" })
+local function load_checkpoint(path)
+    if path == nil or path == "" then
+        return json_object({ ok = false, method = "load_checkpoint", error = "path is required" })
+    end
+    local ok, result = pcall(function()
+        return savestate.load(path, true)
+    end)
+    if not ok then
+        return json_object({ ok = false, method = "load_checkpoint", path = path, error = tostring(result) })
+    end
+    return json_object({ ok = result == true, method = "load_checkpoint", path = path })
+end
+
+local function screenshot(path)
+    if path == nil or path == "" then
+        return json_object({ ok = false, method = "screenshot", error = "path is required" })
+    end
+    local ok, result = pcall(function()
+        client.screenshot(path)
+        return true
+    end)
+    if not ok then
+        return json_object({ ok = false, method = "screenshot", path = path, error = tostring(result) })
+    end
+    return json_object({ ok = result == true, method = "screenshot", path = path })
 end
 
 local function handle_request(payload)
@@ -124,11 +156,11 @@ local function handle_request(payload)
     elseif method == "resume" then
         response = resume_emulator()
     elseif method == "save_checkpoint" then
-        response = checkpoint_stub("save_checkpoint")
+        response = save_checkpoint(extract_string(payload, "path", ""))
     elseif method == "load_checkpoint" then
-        response = checkpoint_stub("load_checkpoint")
+        response = load_checkpoint(extract_string(payload, "path", ""))
     elseif method == "screenshot" then
-        response = screenshot_stub()
+        response = screenshot(extract_string(payload, "path", ""))
     else
         response = json_object({ ok = false, error = "unknown method", method = method })
     end

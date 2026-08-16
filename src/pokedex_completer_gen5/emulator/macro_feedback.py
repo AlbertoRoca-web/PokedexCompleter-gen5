@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
+from pokedex_completer_gen5.persistence.store import persist_macro_feedback
+
 MacroFeedbackOutcome = Literal["success", "failure", "uncertain"]
 
 
@@ -40,6 +42,7 @@ def record_macro_feedback(
 ) -> MacroFeedback:
     feedback = MacroFeedback(macro_run_id=macro_run_id, outcome=outcome, notes=notes, payload=payload or {})
     _feedback.append(feedback)
+    persist_macro_feedback(feedback.to_dict())
     return feedback
 
 

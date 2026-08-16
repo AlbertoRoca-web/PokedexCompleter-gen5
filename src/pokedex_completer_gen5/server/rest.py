@@ -11,7 +11,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from pokedex_completer_gen5 import __version__
 from pokedex_completer_gen5.agents.validator_store import recent_validator_events, record_validator_event
 from pokedex_completer_gen5.agents.voice import build_voice_config, create_realtime_session
+from pokedex_completer_gen5.ai.router import router_payload
+from pokedex_completer_gen5.application.service import service
 from pokedex_completer_gen5.dex.pc_living_dex import build_pc_living_dex_report
+from pokedex_completer_gen5.emulator.artifacts import checkpoint_path, screenshot_path
 from pokedex_completer_gen5.emulator.bizhawk_client import BizHawkBridgeError, BizHawkClient, bizhawk_config_from_env
 from pokedex_completer_gen5.emulator.controls import controls_payload, normalize_button_or_action
 from pokedex_completer_gen5.emulator.diagnostics import build_emulator_diagnostics, wait_for_bridge
@@ -21,6 +24,7 @@ from pokedex_completer_gen5.emulator.macros import run_close_menu_macro, run_ope
 from pokedex_completer_gen5.emulator.native_bridge import NativeBridgeError, native_bridge, wait_for_native_bridge
 from pokedex_completer_gen5.integrations.env import load_environment
 from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
+from pokedex_completer_gen5.persistence.store import macro_reliability, persist_artifact, persist_macro_attempt
 from pokedex_completer_gen5.saveio.physical_report import build_save_payload, build_save_report
 from pokedex_completer_gen5.server.dashboard import DASHBOARD_HTML
 from pokedex_completer_gen5.server.telemetry import (
@@ -28,6 +32,7 @@ from pokedex_completer_gen5.server.telemetry import (
     record_telemetry_event,
     telemetry_websocket,
 )
+from pokedex_completer_gen5.trajectory import read_jsonl_events
 
 load_environment()
 
@@ -123,6 +128,11 @@ def provider_health() -> dict[str, object]:
     return provider_health_payload()
 
 
+@app.get("/api/ai/model-router")
+def ai_model_router() -> dict[str, str | None]:
+    return router_payload()
+
+
 def bridge_client() -> BizHawkClient:
     return BizHawkClient(bizhawk_config_from_env())
 
@@ -176,6 +186,11 @@ async def websocket_telemetry(websocket: WebSocket) -> None:
 @app.get("/api/telemetry")
 def telemetry(limit: int = 50) -> dict[str, Any]:
     return {"events": recent_telemetry_events(limit=limit)}
+
+
+@app.get("/api/trajectory")
+def trajectory(limit: int = 100) -> dict[str, Any]:
+    return {"events": read_jsonl_events(limit=limit)}
 
 
 @app.post("/api/ui/events")
@@ -241,6 +256,18 @@ def emulator_state() -> dict[str, Any]:
         raise bridge_error("emulator.state.error", exc) from exc
 
 
+@app.get("/api/emulator/semantic-state")
+def emulator_semantic_state() -> dict[str, Any]:
+    try:
+        raw_state = bridge_request("get_state")
+        semantic = service().semantic_emulator_state(raw_state)
+        payload = semantic.model_dump(mode="json")
+        record_telemetry_event("emulator.semantic_state", payload)
+        return payload
+    except BizHawkBridgeError as exc:
+        raise bridge_error("emulator.semantic_state.error", exc) from exc
+
+
 @app.post("/api/emulator/press")
 def emulator_press(request: EmulatorPressRequest) -> dict[str, Any]:
     try:
@@ -283,6 +310,7 @@ def emulator_macro_open_menu(request: EmulatorMacroRequest | None = None) -> dic
     try:
         macro = run_open_menu_macro(bridge_request, wait_frames=request.wait_frames if request else 20)
         payload = macro.to_dict()
+        persist_macro_attempt(payload)
         record_telemetry_event("emulator.macro.open_menu", payload)
         return payload
     except BizHawkBridgeError as exc:
@@ -294,6 +322,7 @@ def emulator_macro_close_menu(request: EmulatorMacroRequest | None = None) -> di
     try:
         macro = run_close_menu_macro(bridge_request, wait_frames=request.wait_frames if request else 20)
         payload = macro.to_dict()
+        persist_macro_attempt(payload)
         record_telemetry_event("emulator.macro.close_menu", payload)
         return payload
     except BizHawkBridgeError as exc:
@@ -302,7 +331,7 @@ def emulator_macro_close_menu(request: EmulatorMacroRequest | None = None) -> di
 
 @app.get("/api/emulator/macro/feedback")
 def emulator_macro_feedback_recent(limit: int = 50) -> dict[str, Any]:
-    return {"feedback": recent_macro_feedback(limit=limit)}
+    return {"feedback": recent_macro_feedback(limit=limit), "reliability": macro_reliability(limit=limit)}
 
 
 @app.post("/api/emulator/macro/feedback")
@@ -339,7 +368,11 @@ def emulator_resume() -> dict[str, Any]:
 @app.post("/api/emulator/checkpoint/save")
 def emulator_save_checkpoint(request: EmulatorCheckpointRequest) -> dict[str, Any]:
     try:
-        return bridge_response("emulator.save_checkpoint", bridge_request("save_checkpoint", {"name": request.name}))
+        path = checkpoint_path(request.name)
+        payload = bridge_request("save_checkpoint", {"name": request.name, "path": str(path)})
+        payload["artifact_path"] = str(path)
+        payload["artifact"] = persist_artifact("checkpoint", path, payload)
+        return bridge_response("emulator.save_checkpoint", payload)
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.save_checkpoint.error", exc) from exc
 
@@ -347,7 +380,10 @@ def emulator_save_checkpoint(request: EmulatorCheckpointRequest) -> dict[str, An
 @app.post("/api/emulator/checkpoint/load")
 def emulator_load_checkpoint(request: EmulatorCheckpointRequest) -> dict[str, Any]:
     try:
-        return bridge_response("emulator.load_checkpoint", bridge_request("load_checkpoint", {"name": request.name}))
+        path = Path(request.name)
+        payload = bridge_request("load_checkpoint", {"name": request.name, "path": str(path)})
+        payload["artifact_path"] = str(path)
+        return bridge_response("emulator.load_checkpoint", payload)
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.load_checkpoint.error", exc) from exc
 
@@ -355,7 +391,11 @@ def emulator_load_checkpoint(request: EmulatorCheckpointRequest) -> dict[str, An
 @app.get("/api/emulator/screenshot")
 def emulator_screenshot() -> dict[str, Any]:
     try:
-        return bridge_response("emulator.screenshot", bridge_request("screenshot"))
+        path = screenshot_path()
+        payload = bridge_request("screenshot", {"path": str(path)})
+        payload["artifact_path"] = str(path)
+        payload["artifact"] = persist_artifact("screenshot", path, payload)
+        return bridge_response("emulator.screenshot", payload)
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.screenshot.error", exc) from exc
 

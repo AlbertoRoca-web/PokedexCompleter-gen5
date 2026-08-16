@@ -8,12 +8,16 @@ from rich.console import Console
 
 from pokedex_completer_gen5.agents.planner import plan_next_tasks
 from pokedex_completer_gen5.agents.providers.factory import create_planner_provider
+from pokedex_completer_gen5.ai.benchmark import dry_run_model_routing
+from pokedex_completer_gen5.ai.router import router_payload
 from pokedex_completer_gen5.backend.report_store import sha256_file, store_dex_report
 from pokedex_completer_gen5.dex.catchable_targets import build_catchable_inventory_report
 from pokedex_completer_gen5.dex.pc_living_dex import build_pc_living_dex_report
 from pokedex_completer_gen5.integrations.env import load_environment
 from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
+from pokedex_completer_gen5.persistence.database import init_database
 from pokedex_completer_gen5.saveio.gen5_save import build_save_output, build_save_payload, write_save_report
+from pokedex_completer_gen5.trajectory import read_jsonl_events
 
 app = typer.Typer(help="Generation 5 physical inventory and catchable-target completer.")
 console = Console()
@@ -116,6 +120,33 @@ def sync_report(
 def provider_health() -> None:
     """Show which external provider environment variables are configured."""
     console.print_json(data=provider_health_payload())
+
+
+@app.command("init-db")
+def init_db() -> None:
+    """Create the local SQLite runtime database tables."""
+    init_database()
+    console.print("[green]Local SQLite runtime database is ready.[/green]")
+
+
+@app.command("trajectory")
+def trajectory(limit: int = typer.Option(100, help="Number of recent JSONL events to print.")) -> None:
+    """Print recent local JSONL trajectory events."""
+    console.print_json(data={"events": read_jsonl_events(limit=limit)})
+
+
+@app.command("model-router")
+def model_router() -> None:
+    """Print current cost-aware model routing configuration."""
+    console.print_json(data=router_payload())
+
+
+@app.command("benchmark-routing")
+def benchmark_routing(
+    cases_dir: Path = typer.Option(Path("tests/planner_cases"), help="Directory of benchmark case JSON files."),
+) -> None:
+    """Dry-run benchmark cases through the model router without calling any provider."""
+    console.print_json(data={"cases": dry_run_model_routing(cases_dir)})
 
 
 @app.command()

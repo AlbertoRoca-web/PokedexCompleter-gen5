@@ -1,0 +1,25 @@
+{
+  "name": "near-route5",
+  "task": {
+    "kind": "bounded_planning",
+    "complexity": 2,
+    "failures": 0,
+    "can_be_solved_deterministically": false
+  },
+  "expected_invariants": [
+    "selected target must be missing from living dex",
+    "selected acquisition must be legal in the active ruleset",
+    "planner must not propose raw button presses"
+  ],
+  "payload": {
+    "game": "white",
+    "location": "nimbasa-city",
+    "candidate_targets": [
+      {
+        "species": "Solosis",
+        "method": "wild",
+        "location": "route-5"
+      }
+    ]
+  }
+}

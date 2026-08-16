@@ -1,0 +1,17 @@
+{
+  "game": "white",
+  "region": "us-eu",
+  "revision": "rev0",
+  "rom_sha1": null,
+  "memory_profile": "white-us-eu-rev0",
+  "dex_profile": "bw-unova",
+  "status": "identity-only",
+  "notes": [
+    "Memory addresses are intentionally not populated until verified against this exact ROM revision.",
+    "Automation must fail closed rather than reusing addresses from another Gen 5 game or revision."
+  ],
+  "domains": {
+    "main_memory": "Main RAM"
+  },
+  "addresses": {}
+}

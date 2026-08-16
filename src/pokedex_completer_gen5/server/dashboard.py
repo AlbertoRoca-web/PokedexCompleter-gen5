@@ -130,6 +130,18 @@ DASHBOARD_HTML = """<!doctype html>
   </section>
 
   <section class="card">
+    <h2>Visualizer / Runtime Spine</h2>
+    <p class="muted">Structured state, durable trajectory logs, and cost-aware routing. Tiny dashboard, big bones.</p>
+    <div class="button-row">
+      <button type="button" onclick="semanticStateFetch()">Semantic State</button>
+      <button type="button" onclick="trajectoryFetch()">Trajectory JSONL</button>
+      <button type="button" onclick="modelRouterFetch()">Model Router</button>
+      <button type="button" onclick="macroReliabilityFetch()">Macro Reliability</button>
+    </div>
+    <pre id="visualizerOutput">No visualizer data yet.</pre>
+  </section>
+
+  <section class="card">
     <h2>Telemetry</h2>
     <p class="muted">Live-ish local event stream. WebSocket reconnect is manual for now.</p>
     <button type="button" onclick="telemetryFetch()">Fetch Telemetry</button>
@@ -330,6 +342,22 @@ async function emulatorScreenshot() {
 
 async function telemetryFetch() {
   await apiToPre('/api/telemetry', { method: 'GET' }, 'telemetryOutput');
+}
+
+async function semanticStateFetch() {
+  await apiToPre('/api/emulator/semantic-state', { method: 'GET' }, 'visualizerOutput');
+}
+
+async function trajectoryFetch() {
+  await apiToPre('/api/trajectory', { method: 'GET' }, 'visualizerOutput');
+}
+
+async function modelRouterFetch() {
+  await apiToPre('/api/ai/model-router', { method: 'GET' }, 'visualizerOutput');
+}
+
+async function macroReliabilityFetch() {
+  await apiToPre('/api/emulator/macro/feedback', { method: 'GET' }, 'visualizerOutput');
 }
 
 function connectTelemetry() {

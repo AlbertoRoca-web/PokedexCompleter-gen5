@@ -1370,6 +1370,8 @@ name = "pokedex-completer-gen5"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "aiosqlite" },
+    { name = "alembic" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "mcp" },
@@ -1378,6 +1380,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "rich" },
+    { name = "sqlalchemy" },
     { name = "typer" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "websockets" },
@@ -1390,9 +1393,6 @@ ai = [
     { name = "openai" },
 ]
 backend = [
-    { name = "aiosqlite" },
-    { name = "alembic" },
-    { name = "sqlalchemy" },
     { name = "supabase" },
 ]
 dev = [
@@ -1413,8 +1413,8 @@ vision = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosqlite", marker = "extra == 'backend'", specifier = ">=0.20" },
-    { name = "alembic", marker = "extra == 'backend'", specifier = ">=1.13" },
+    { name = "aiosqlite", specifier = ">=0.20" },
+    { name = "alembic", specifier = ">=1.13" },
     { name = "anthropic", marker = "extra == 'ai'", specifier = ">=0.40" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "google-genai", marker = "extra == 'ai'", specifier = ">=1.0" },
@@ -1435,7 +1435,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "rich", specifier = ">=13.7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
-    { name = "sqlalchemy", marker = "extra == 'backend'", specifier = ">=2.0" },
+    { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "supabase", marker = "extra == 'backend'", specifier = ">=2.0" },
     { name = "typer", specifier = ">=0.12" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },

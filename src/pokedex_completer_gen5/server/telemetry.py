@@ -9,6 +9,10 @@ from uuid import uuid4
 
 from fastapi import WebSocket
 
+from pokedex_completer_gen5.events import event_bus
+from pokedex_completer_gen5.persistence.store import persist_event
+from pokedex_completer_gen5.trajectory import append_jsonl_event
+
 
 @dataclass(frozen=True)
 class TelemetryEvent:
@@ -27,11 +31,23 @@ class TelemetryEvent:
 
 
 _events: deque[TelemetryEvent] = deque(maxlen=500)
+_event_sinks_registered = False
+
+
+def _ensure_event_sinks() -> None:
+    global _event_sinks_registered
+    if _event_sinks_registered:
+        return
+    event_bus().subscribe(append_jsonl_event)
+    event_bus().subscribe(persist_event)
+    _event_sinks_registered = True
 
 
 def record_telemetry_event(event_type: str, payload: dict[str, Any] | None = None) -> TelemetryEvent:
+    _ensure_event_sinks()
     event = TelemetryEvent(event_type=event_type, payload=payload or {})
     _events.append(event)
+    event_bus().publish(event.event_type, event.payload)
     return event
 
 
