@@ -101,8 +101,19 @@ def run_resume_saved_game_from_title(
             )
         )
 
-    phases.append(_press_phase(bridge_request, "confirm-continue", "confirm", press_frames=press_frames))
-    phases.append(_advance_phase(bridge_request, "minimum-wait-after-continue", wait_after_continue_frames))
+    after_continue, continue_phases = _press_until_changed(
+        bridge_request,
+        reference=after_start,
+        label=f"title-flow-{flow_id}-after-continue",
+        phase_prefix="confirm-continue",
+        action="confirm",
+        press_frames=press_frames,
+        wait_frames=wait_after_continue_frames,
+        max_change_attempts=change_max_attempts,
+        visual_max_attempts=visual_max_attempts,
+        visual_advance_frames=visual_advance_frames,
+    )
+    phases.extend(continue_phases)
     phases.append(_press_phase(bridge_request, "cgear-prompt-select-no", "down", press_frames=press_frames))
     phases.append(_press_phase(bridge_request, "cgear-prompt-confirm-no", "confirm", press_frames=press_frames))
     phases.append(_advance_phase(bridge_request, "minimum-wait-after-cgear-no", wait_after_cgear_prompt_frames))
@@ -178,6 +189,38 @@ def _screenshot_phase(name: str, result: InformativeScreenshotResult) -> TitleFl
         result={"ok": result.ok, "reason": result.reason},
         screenshot=result.to_dict(),
     )
+
+
+def _press_until_changed(
+    bridge_request: BridgeRequest,
+    *,
+    reference: InformativeScreenshotResult,
+    label: str,
+    phase_prefix: str,
+    action: str,
+    press_frames: int,
+    wait_frames: int,
+    max_change_attempts: int,
+    visual_max_attempts: int,
+    visual_advance_frames: int,
+) -> tuple[InformativeScreenshotResult, list[TitleFlowPhase]]:
+    phases: list[TitleFlowPhase] = []
+    latest: InformativeScreenshotResult | None = None
+    for attempt in range(1, max_change_attempts + 1):
+        phases.append(
+            _press_phase(bridge_request, f"{phase_prefix}-press-{attempt}", action, press_frames=press_frames)
+        )
+        phases.append(_advance_phase(bridge_request, f"{phase_prefix}-wait-{attempt}", wait_frames))
+        latest = capture_informative_screenshot(
+            bridge_request,
+            label=f"{label}-{attempt}",
+            max_attempts=visual_max_attempts,
+            advance_frames=visual_advance_frames,
+        )
+        phases.append(_screenshot_phase(f"{phase_prefix}-after-{attempt}", latest))
+        if _screens_changed(reference, latest):
+            return latest, phases
+    return latest or reference, phases
 
 
 def _observe_until_changed(
