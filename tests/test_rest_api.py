@@ -182,6 +182,45 @@ def test_emulator_memory_read_u8_endpoint(monkeypatch: pytest.MonkeyPatch) -> No
     assert response.json()["value"] == 42
 
 
+def test_emulator_memory_diff_after_press_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_bridge_request(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+        assert method == "memory.diff_after_press"
+        assert params == {
+            "domain": "ARM9 System Bus",
+            "address": 16,
+            "length": 32,
+            "button": "Start",
+            "press_frames": 5,
+            "advance_frames": 120,
+            "max_changes": 10,
+        }
+        return {
+            "ok": True,
+            "method": method,
+            "changed_count": 2,
+            "changes_csv": "20AA4C0:0:1,20AA4C1:7:9",
+        }
+
+    monkeypatch.setattr("pokedex_completer_gen5.server.rest.bridge_request", fake_bridge_request)
+    client = TestClient(app)
+    response = client.post(
+        "/api/emulator/memory/diff-after-press",
+        json={
+            "domain": "ARM9 System Bus",
+            "address": 16,
+            "length": 32,
+            "button": "start",
+            "press_frames": 5,
+            "advance_frames": 120,
+            "max_changes": 10,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["changes"][0]["hex_address"] == "0x20AA4C0"
+    assert response.json()["changes"][1]["after"] == 9
+
+
 def test_emulator_macro_feedback_endpoint() -> None:
     client = TestClient(app)
     response = client.post(

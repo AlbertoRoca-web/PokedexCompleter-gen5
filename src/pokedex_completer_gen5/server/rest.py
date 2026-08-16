@@ -93,6 +93,14 @@ class EmulatorMemoryReadBytesRequest(EmulatorMemoryReadRequest):
     length: int = Field(default=16, ge=1, le=4096)
 
 
+class EmulatorMemoryDiffAfterPressRequest(EmulatorMemoryReadRequest):
+    length: int = Field(default=65536, ge=1, le=262144)
+    button: str = ""
+    press_frames: int = Field(default=5, ge=1, le=60)
+    advance_frames: int = Field(default=120, ge=1, le=5000)
+    max_changes: int = Field(default=500, ge=1, le=2000)
+
+
 class EmulatorMacroRequest(BaseModel):
     wait_frames: int = Field(default=get_settings().timing.macro_wait_frames, ge=1, le=180)
     visual_max_attempts: int = Field(default=get_settings().timing.macro_visual_max_attempts, ge=1, le=10)
@@ -225,6 +233,24 @@ def bridge_request(method: str, params: dict[str, Any] | None = None) -> dict[st
 def bridge_response(event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
     record_telemetry_event(event_type, payload)
     return payload
+
+
+def _parse_memory_changes(changes_csv: str) -> list[dict[str, int | str]]:
+    changes: list[dict[str, int | str]] = []
+    for item in changes_csv.split(","):
+        if not item:
+            continue
+        address_hex, before_text, after_text = item.split(":")
+        address = int(address_hex, 16)
+        changes.append(
+            {
+                "address": address,
+                "hex_address": f"0x{address:X}",
+                "before": int(before_text),
+                "after": int(after_text),
+            }
+        )
+    return changes
 
 
 def bridge_error(event_type: str, exc: BizHawkBridgeError) -> HTTPException:
@@ -632,6 +658,27 @@ def emulator_memory_read_bytes(request: EmulatorMemoryReadBytesRequest) -> dict[
         return bridge_response("emulator.memory.read_bytes", payload)
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.memory.read_bytes.error", exc) from exc
+
+
+@app.post("/api/emulator/memory/diff-after-press")
+def emulator_memory_diff_after_press(request: EmulatorMemoryDiffAfterPressRequest) -> dict[str, Any]:
+    try:
+        payload = bridge_request(
+            "memory.diff_after_press",
+            {
+                "domain": request.domain,
+                "address": request.address,
+                "length": request.length,
+                "button": normalize_button_or_action(request.button) if request.button else "",
+                "press_frames": request.press_frames,
+                "advance_frames": request.advance_frames,
+                "max_changes": request.max_changes,
+            },
+        )
+        payload["changes"] = _parse_memory_changes(str(payload.get("changes_csv", "")))
+        return bridge_response("emulator.memory.diff_after_press", payload)
+    except BizHawkBridgeError as exc:
+        raise bridge_error("emulator.memory.diff_after_press.error", exc) from exc
 
 
 @app.get("/api/emulator/memory/domains")
