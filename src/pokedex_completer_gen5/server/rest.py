@@ -140,7 +140,9 @@ def bridge_request(method: str, params: dict[str, Any] | None = None) -> dict[st
     if method == "get_state":
         return client.get_state()
     if method == "press":
-        return client.press(params["button"], frames=params.get("frames", 1) if params else 1)
+        if params is None:
+            raise BizHawkBridgeError("press requires params")
+        return client.press(str(params["button"]), frames=int(params.get("frames", 1)))
     if method == "press_sequence":
         buttons = params.get("buttons_csv", "").split(",") if params else []
         return client.press_sequence(

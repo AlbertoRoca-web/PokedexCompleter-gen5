@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import socket
 import threading
 import time
@@ -10,12 +9,15 @@ from queue import Empty, Queue
 from typing import Any
 from uuid import uuid4
 
+from pokedex_completer_gen5.settings import get_settings
+
 
 def native_bridge_config_from_env() -> NativeBridgeConfig:
+    settings = get_settings().emulator
     return NativeBridgeConfig(
-        host=os.getenv("BIZHAWK_NATIVE_BRIDGE_HOST", "127.0.0.1"),
-        port=int(os.getenv("BIZHAWK_NATIVE_BRIDGE_PORT", "8766")),
-        timeout_seconds=float(os.getenv("BIZHAWK_NATIVE_BRIDGE_TIMEOUT_SECONDS", "5")),
+        host=settings.native_bridge_host,
+        port=settings.native_bridge_port,
+        timeout_seconds=settings.native_bridge_timeout_seconds,
     )
 
 

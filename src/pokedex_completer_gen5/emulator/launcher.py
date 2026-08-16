@@ -9,18 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from pokedex_completer_gen5.emulator.native_bridge import native_bridge_config_from_env
-
-DEFAULT_BIZHAWK_EXE = Path(r"D:\alroc\codepup\tools\BizHawk-2.11.1\EmuHawk.exe")
-DEFAULT_WHITE_ROM = Path(
-    r"C:\Users\alroc\Downloads\Pokemon - White Version (USA, Europe) (NDSi Enhanced)"
-    r"\Pokemon - White Version (USA, Europe) (NDSi Enhanced).nds"
-)
-DEFAULT_LUA_SCRIPT = Path(r"D:\alroc\codepup\PokedexCompleter-gen5\lua\bizhawk_gen5_bridge.lua")
-DEFAULT_WHITE_SAVE = Path(r"D:\Users\alroc\Downloads\rolplete\POKEMON W.sav")
-DEFAULT_WHITE_SAVERAM = Path(
-    r"D:\alroc\codepup\tools\BizHawk-2.11.1\NDS\SaveRAM"
-    r"\Pokemon - White Version (USA, Europe) (NDSi Enhanced).SaveRAM"
-)
+from pokedex_completer_gen5.settings import get_settings
 
 
 @dataclass(frozen=True)
@@ -42,13 +31,13 @@ class BizHawkLaunchConfig:
 
 
 def bizhawk_launch_config_from_env(rom_path: Path | None = None) -> BizHawkLaunchConfig:
-    configured_rom = rom_path or _optional_path(os.getenv("POKEMON_WHITE_ROM")) or DEFAULT_WHITE_ROM
+    settings = get_settings().emulator
     return BizHawkLaunchConfig(
-        bizhawk_exe=Path(os.getenv("BIZHAWK_EXE", str(DEFAULT_BIZHAWK_EXE))),
-        rom_path=configured_rom,
-        lua_script=Path(os.getenv("BIZHAWK_LUA_SCRIPT", str(DEFAULT_LUA_SCRIPT))),
-        save_source=_optional_path(os.getenv("POKEMON_WHITE_SAVE")) or DEFAULT_WHITE_SAVE,
-        saveram_path=_optional_path(os.getenv("BIZHAWK_WHITE_SAVERAM")) or DEFAULT_WHITE_SAVERAM,
+        bizhawk_exe=settings.bizhawk_exe,
+        rom_path=rom_path or settings.pokemon_white_rom,
+        lua_script=settings.lua_script,
+        save_source=settings.pokemon_white_save,
+        saveram_path=settings.bizhawk_white_saveram,
     )
 
 
@@ -146,5 +135,3 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest().upper()
 
 
-def _optional_path(value: str | None) -> Path | None:
-    return Path(value) if value else None

@@ -11,7 +11,7 @@ class AnthropicPlannerProvider:
 
     def complete(self, prompt: str) -> str:
         try:
-            from anthropic import Anthropic
+            from anthropic import Anthropic  # type: ignore[reportMissingImports]
         except ImportError as exc:  # pragma: no cover - optional dependency.
             raise RuntimeError("Install AI dependencies with: uv sync --extra ai") from exc
 
@@ -24,4 +24,9 @@ class AnthropicPlannerProvider:
             max_tokens=1200,
             messages=[{"role": "user", "content": prompt}],
         )
-        return "".join(block.text for block in response.content if getattr(block, "type", None) == "text")
+        chunks: list[str] = []
+        for block in response.content:
+            text = getattr(block, "text", None)
+            if isinstance(text, str):
+                chunks.append(text)
+        return "".join(chunks)

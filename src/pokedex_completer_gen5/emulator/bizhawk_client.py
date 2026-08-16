@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
-import os
 import socket
 from dataclasses import dataclass
 from typing import Any
+
+from pokedex_completer_gen5.settings import get_settings
 
 
 @dataclass(frozen=True)
@@ -15,10 +16,11 @@ class BizHawkBridgeConfig:
 
 
 def bizhawk_config_from_env() -> BizHawkBridgeConfig:
+    settings = get_settings().emulator
     return BizHawkBridgeConfig(
-        host=os.getenv("BIZHAWK_BRIDGE_HOST", "127.0.0.1"),
-        port=int(os.getenv("BIZHAWK_BRIDGE_PORT", "8765")),
-        timeout_seconds=float(os.getenv("BIZHAWK_BRIDGE_TIMEOUT_SECONDS", "5")),
+        host=settings.legacy_bridge_host,
+        port=settings.legacy_bridge_port,
+        timeout_seconds=settings.legacy_bridge_timeout_seconds,
     )
 
 

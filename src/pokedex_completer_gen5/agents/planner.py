@@ -46,6 +46,7 @@ class PlannerProvider(Protocol):
 
     def complete(self, prompt: str) -> str:
         """Return a model response as text."""
+        ...
 
 
 SYSTEM_RULES = """You are planning a Pokemon Generation 5 regional Living Dex completion route.

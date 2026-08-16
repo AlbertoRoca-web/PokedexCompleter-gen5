@@ -31,6 +31,8 @@ def load_supabase_config(require_service_role: bool = False) -> SupabaseConfig:
     if missing:
         raise RuntimeError("Missing Supabase environment variables: " + ", ".join(missing))
 
+    assert url is not None
+    assert publishable_key is not None
     return SupabaseConfig(
         url=url,
         publishable_key=publishable_key,
@@ -49,7 +51,7 @@ def create_supabase_client(use_service_role: bool = False) -> Any:
     desktop clients, logs, or screenshots. Yes, this warning is here because humans are spicy.
     """
     try:
-        from supabase import create_client
+        from supabase import create_client  # type: ignore[reportAttributeAccessIssue]
     except ImportError as exc:  # pragma: no cover - depends on optional extra.
         raise RuntimeError("Install backend dependencies with: uv sync --extra backend") from exc
 

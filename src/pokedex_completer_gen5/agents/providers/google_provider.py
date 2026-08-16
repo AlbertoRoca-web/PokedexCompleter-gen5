@@ -11,7 +11,7 @@ class GooglePlannerProvider:
 
     def complete(self, prompt: str) -> str:
         try:
-            from google import genai
+            from google import genai  # type: ignore[reportAttributeAccessIssue]
         except ImportError as exc:  # pragma: no cover - optional dependency.
             raise RuntimeError("Install AI dependencies with: uv sync --extra ai") from exc
 

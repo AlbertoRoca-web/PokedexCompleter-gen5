@@ -11,7 +11,7 @@ class OpenAIPlannerProvider:
 
     def complete(self, prompt: str) -> str:
         try:
-            from openai import OpenAI
+            from openai import OpenAI  # type: ignore[reportMissingImports]
         except ImportError as exc:  # pragma: no cover - optional dependency.
             raise RuntimeError("Install AI dependencies with: uv sync --extra ai") from exc
 

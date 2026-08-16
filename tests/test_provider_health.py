@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
+
+
+def providers(payload: dict[str, object]) -> dict[str, Any]:
+    return cast(dict[str, Any], payload["providers"])
 
 
 def test_provider_health_reports_missing_without_values() -> None:
@@ -8,7 +14,7 @@ def test_provider_health_reports_missing_without_values() -> None:
 
     assert payload["configured_count"] == 0
     assert payload["total_count"] == 6
-    assert payload["providers"]["openai"]["status"] == "missing"
+    assert providers(payload)["openai"]["status"] == "missing"
 
 
 def test_provider_health_reports_configured_supabase_aliases() -> None:
@@ -20,6 +26,6 @@ def test_provider_health_reports_configured_supabase_aliases() -> None:
         }
     )
 
-    assert payload["providers"]["openai"]["status"] == "configured"
-    assert payload["providers"]["supabase"]["status"] == "configured"
+    assert providers(payload)["openai"]["status"] == "configured"
+    assert providers(payload)["supabase"]["status"] == "configured"
     assert payload["configured_count"] == 2

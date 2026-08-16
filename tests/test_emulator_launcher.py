@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -22,7 +23,7 @@ def test_launch_bizhawk_builds_process(monkeypatch: pytest.MonkeyPatch, tmp_path
     rom.write_text("fake", encoding="utf-8")
     lua.write_text("fake", encoding="utf-8")
     save.write_bytes(b"completed-save")
-    calls: list[object] = []
+    calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
 
     class FakeProcess:
         pid = 1234
@@ -43,7 +44,7 @@ def test_launch_bizhawk_builds_process(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert result["pid"] == 1234
     assert calls
     args, kwargs = calls[0]
-    command = args[0]
+    command = cast(list[str], args[0])
     assert command == [str(exe), "--socket-ip", "127.0.0.1", "--socket-port", "8766", "--lua", str(lua), str(rom)]
     assert kwargs["cwd"] == str(exe.parent)
     assert saveram.read_bytes() == b"completed-save"
