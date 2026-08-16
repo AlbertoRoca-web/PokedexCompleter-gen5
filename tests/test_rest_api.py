@@ -101,6 +101,35 @@ def test_validator_event_endpoint() -> None:
     assert client.get("/api/validator/events").json()["events"]
 
 
+def test_emulator_macro_open_menu_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, dict[str, object] | None]] = []
+
+    def fake_bridge_request(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+        calls.append((method, params))
+        return {"ok": True, "method": method}
+
+    monkeypatch.setattr("pokedex_completer_gen5.server.rest.bridge_request", fake_bridge_request)
+    client = TestClient(app)
+    response = client.post("/api/emulator/macro/open-menu", json={"wait_frames": 7})
+
+    assert response.status_code == 200
+    assert response.json()["macro_name"] == "open_menu"
+    assert response.json()["status"] == "executed-needs-human-confirmation"
+    assert calls == [("press", {"button": "X", "frames": 1}), ("frame_advance", {"frames": 7})]
+
+
+def test_emulator_macro_feedback_endpoint() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/api/emulator/macro/feedback",
+        json={"macro_run_id": "macro-1", "outcome": "success", "notes": "opened menu"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["outcome"] == "success"
+    assert client.get("/api/emulator/macro/feedback").json()["feedback"]
+
+
 def test_emulator_bridge_error_returns_hint(monkeypatch: pytest.MonkeyPatch) -> None:
     class FailingClient:
         def __init__(self, config: object) -> None:

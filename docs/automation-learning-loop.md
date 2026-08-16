@@ -44,7 +44,16 @@ Rules:
 
 ## First practical automation target
 
-Now that native BizHawk control works, the first macro should be tiny:
+Implemented endpoints:
+
+```text
+POST /api/emulator/macro/open-menu
+POST /api/emulator/macro/close-menu
+GET  /api/emulator/macro/feedback
+POST /api/emulator/macro/feedback
+```
+
+Current macro behavior:
 
 ```text
 open_menu:
@@ -52,15 +61,18 @@ open_menu:
   NDS button: X
   default keyboard: S
   expected result: Pokemon pause menu appears
+  verification: human-confirmation-v1
 ```
-
-Then:
 
 ```text
 close_menu:
   action: cancel
   NDS button: B
   default keyboard: Z
+  expected result: menu closes or backs out one level
+  verification: human-confirmation-v1
 ```
+
+After each macro, the dashboard asks for feedback: worked, failed, or uncertain. This is the seed of the learning loop.
 
 After these are stable, build higher-level macros from them. Do not write a giant universal bot first. That would be spaghetti with a hat.

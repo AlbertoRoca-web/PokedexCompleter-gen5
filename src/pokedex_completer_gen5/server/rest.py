@@ -16,6 +16,8 @@ from pokedex_completer_gen5.emulator.bizhawk_client import BizHawkBridgeError, B
 from pokedex_completer_gen5.emulator.controls import controls_payload, normalize_button_or_action
 from pokedex_completer_gen5.emulator.diagnostics import build_emulator_diagnostics, wait_for_bridge
 from pokedex_completer_gen5.emulator.launcher import bizhawk_launch_config_from_env, launch_bizhawk
+from pokedex_completer_gen5.emulator.macro_feedback import recent_macro_feedback, record_macro_feedback
+from pokedex_completer_gen5.emulator.macros import run_close_menu_macro, run_open_menu_macro
 from pokedex_completer_gen5.emulator.native_bridge import NativeBridgeError, native_bridge, wait_for_native_bridge
 from pokedex_completer_gen5.integrations.env import load_environment
 from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
@@ -52,6 +54,17 @@ class EmulatorPressSequenceRequest(BaseModel):
 
 class EmulatorFrameAdvanceRequest(BaseModel):
     frames: int = Field(default=1, ge=1, le=600)
+
+
+class EmulatorMacroRequest(BaseModel):
+    wait_frames: int = Field(default=20, ge=1, le=180)
+
+
+class EmulatorMacroFeedbackRequest(BaseModel):
+    macro_run_id: str = Field(min_length=1)
+    outcome: str
+    notes: str = ""
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
 class EmulatorCheckpointRequest(BaseModel):
@@ -261,6 +274,48 @@ def emulator_frame_advance(request: EmulatorFrameAdvanceRequest) -> dict[str, An
         return bridge_response("emulator.frame_advance", bridge_request("frame_advance", {"frames": request.frames}))
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.frame_advance.error", exc) from exc
+
+
+@app.post("/api/emulator/macro/open-menu")
+def emulator_macro_open_menu(request: EmulatorMacroRequest | None = None) -> dict[str, Any]:
+    try:
+        macro = run_open_menu_macro(bridge_request, wait_frames=request.wait_frames if request else 20)
+        payload = macro.to_dict()
+        record_telemetry_event("emulator.macro.open_menu", payload)
+        return payload
+    except BizHawkBridgeError as exc:
+        raise bridge_error("emulator.macro.open_menu.error", exc) from exc
+
+
+@app.post("/api/emulator/macro/close-menu")
+def emulator_macro_close_menu(request: EmulatorMacroRequest | None = None) -> dict[str, Any]:
+    try:
+        macro = run_close_menu_macro(bridge_request, wait_frames=request.wait_frames if request else 20)
+        payload = macro.to_dict()
+        record_telemetry_event("emulator.macro.close_menu", payload)
+        return payload
+    except BizHawkBridgeError as exc:
+        raise bridge_error("emulator.macro.close_menu.error", exc) from exc
+
+
+@app.get("/api/emulator/macro/feedback")
+def emulator_macro_feedback_recent(limit: int = 50) -> dict[str, Any]:
+    return {"feedback": recent_macro_feedback(limit=limit)}
+
+
+@app.post("/api/emulator/macro/feedback")
+def emulator_macro_feedback(request: EmulatorMacroFeedbackRequest) -> dict[str, Any]:
+    if request.outcome not in ("success", "failure", "uncertain"):
+        raise HTTPException(status_code=400, detail="Outcome must be success, failure, or uncertain")
+    feedback = record_macro_feedback(
+        request.macro_run_id,
+        request.outcome,  # type: ignore[arg-type]
+        notes=request.notes,
+        payload=request.payload,
+    )
+    payload = feedback.to_dict()
+    record_telemetry_event("emulator.macro.feedback", payload)
+    return payload
 
 
 @app.post("/api/emulator/pause")

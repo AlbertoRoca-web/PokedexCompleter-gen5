@@ -112,6 +112,17 @@ DASHBOARD_HTML = """<!doctype html>
       <button type="button" onclick="checkpointLoad()">Load CP</button>
       <button type="button" onclick="emulatorScreenshot()">Screenshot</button>
     </div>
+    <h3>Macros</h3>
+    <div class="button-row">
+      <button type="button" onclick="runMacro('/api/emulator/macro/open-menu')">Open Menu Macro</button>
+      <button type="button" onclick="runMacro('/api/emulator/macro/close-menu')">Close Menu Macro</button>
+      <button type="button" onclick="macroFeedback('success')">Macro Worked</button>
+      <button type="button" onclick="macroFeedback('failure')">Macro Failed</button>
+      <button type="button" onclick="macroFeedback('uncertain')">Macro Uncertain</button>
+    </div>
+    <div id="macroStatus" class="status-panel status-warn">
+      No macro run yet. Run Open Menu Macro, then confirm whether it worked.
+    </div>
     <div id="emulatorStatus" class="status-panel status-warn">
       Status: not checked yet. Click Launch or Diagnose.
     </div>
@@ -161,6 +172,8 @@ DASHBOARD_HTML = """<!doctype html>
   </section>
 </main>
 <script>
+let latestMacroRunId = null;
+
 async function runReport() {
   await logUiEvent('read_save_clicked', currentUiState());
   const error = document.getElementById('error');
@@ -273,6 +286,42 @@ async function checkpointSave() {
 
 async function checkpointLoad() {
   await emulatorPost('/api/emulator/checkpoint/load', { name: 'manual' });
+}
+
+async function runMacro(url) {
+  await logUiEvent('emulator_macro_clicked', { url });
+  await apiToPre(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ wait_frames: 20 })
+  }, 'emulatorOutput', renderMacroStatus);
+}
+
+function renderMacroStatus(data) {
+  if (!data.macro_name || !data.id) return;
+  latestMacroRunId = data.id;
+  const status = document.getElementById('macroStatus');
+  status.className = 'status-panel status-warn';
+  status.innerHTML = `<strong>${data.macro_name}</strong><br>` +
+    `Expected: ${data.expected_result}<br>` +
+    `<span class="muted">Status: ${data.status}. Click Macro Worked/Failed/Uncertain.</span>`;
+}
+
+async function macroFeedback(outcome) {
+  const status = document.getElementById('macroStatus');
+  if (!latestMacroRunId) {
+    status.className = 'status-panel status-bad';
+    status.textContent = 'Run a macro first, then label it. Nice try, time traveler.';
+    return;
+  }
+  await apiToPre('/api/emulator/macro/feedback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ macro_run_id: latestMacroRunId, outcome, payload: currentUiState() })
+  }, 'emulatorOutput');
+  status.className = outcome === 'success' ? 'status-panel status-ready' : 'status-panel status-warn';
+  status.innerHTML = `<strong>Feedback saved:</strong> ${outcome}<br>` +
+    `<span class="muted">Macro run ${latestMacroRunId}</span>`;
 }
 
 async function emulatorScreenshot() {
