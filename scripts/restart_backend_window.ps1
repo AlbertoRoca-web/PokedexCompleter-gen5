@@ -5,6 +5,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$RuntimeDir = Join-Path $RepoRoot ".runtime\backend-window"
+$BackendLog = Join-Path $RuntimeDir "backend.log"
+$BackendCmd = Join-Path $RuntimeDir "run-backend.cmd"
 
 function Stop-ProcessTree {
     param([int]$ProcessIdToStop)
@@ -64,9 +67,17 @@ function Wait-PortFree {
     return $false
 }
 
+function Get-BackendLogTail {
+    if (-not (Test-Path $BackendLog)) {
+        return "[backend-restart] Backend log does not exist yet: $BackendLog"
+    }
+    return (Get-Content $BackendLog -Tail 80 -ErrorAction SilentlyContinue) -join "`n"
+}
+
 Write-Host "[backend-restart] Repo: $RepoRoot"
 Write-Host "[backend-restart] Port: $Port"
 Write-Host "[backend-restart] Window title: $WindowTitle"
+Write-Host "[backend-restart] Log: $BackendLog"
 
 $portConnections = @(Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue)
 $portPids = @($portConnections | Select-Object -ExpandProperty OwningProcess -Unique)
@@ -112,11 +123,31 @@ if (-not $portFree) {
     exit 1
 }
 
-$cmd = "title $WindowTitle && cd /d `"$RepoRoot`" && git pull --ff-only && uv run rld serve --host 127.0.0.1 --port $Port"
-Write-Host "[backend-restart] Launching fresh backend window..."
-Start-Process -FilePath "cmd.exe" -ArgumentList "/k", $cmd -WorkingDirectory $RepoRoot
+New-Item -ItemType Directory -Force -Path $RuntimeDir | Out-Null
+Set-Content -Path $BackendLog -Value "[backend-restart] Starting backend at $(Get-Date -Format o)" -Encoding UTF8
 
-$deadline = (Get-Date).AddSeconds(30)
+$cmd = @"
+@echo off
+title $WindowTitle
+cd /d "$RepoRoot"
+echo [backend-restart] Repo %CD% >> "$BackendLog" 2>>&1
+echo [backend-restart] Pulling latest code... >> "$BackendLog" 2>>&1
+git pull --ff-only >> "$BackendLog" 2>>&1
+if errorlevel 1 goto failed
+echo [backend-restart] Starting server... >> "$BackendLog" 2>>&1
+uv run rld serve --host 127.0.0.1 --port $Port >> "$BackendLog" 2>>&1
+goto end
+:failed
+echo [backend-restart] Command failed before server startup. >> "$BackendLog" 2>>&1
+:end
+echo [backend-restart] Backend command exited. >> "$BackendLog" 2>>&1
+"@
+Set-Content -Path $BackendCmd -Value $cmd -Encoding ASCII
+
+Write-Host "[backend-restart] Launching fresh backend window..."
+Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "`"$BackendCmd`"" -WorkingDirectory $RepoRoot
+
+$deadline = (Get-Date).AddSeconds(45)
 while ((Get-Date) -lt $deadline) {
     Start-Sleep -Milliseconds 500
     try {
@@ -128,5 +159,7 @@ while ((Get-Date) -lt $deadline) {
     }
 }
 
+Write-Host "[backend-restart] Backend log tail:"
+Write-Host (Get-BackendLogTail)
 Write-Error "Backend did not become healthy on port $Port before timeout."
 exit 1
