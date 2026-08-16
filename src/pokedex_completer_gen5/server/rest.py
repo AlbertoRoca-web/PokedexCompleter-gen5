@@ -20,9 +20,11 @@ from pokedex_completer_gen5.emulator.controls import controls_payload, normalize
 from pokedex_completer_gen5.emulator.diagnostics import build_emulator_diagnostics, wait_for_bridge
 from pokedex_completer_gen5.emulator.launcher import bizhawk_launch_config_from_env, launch_bizhawk
 from pokedex_completer_gen5.emulator.macro_feedback import recent_macro_feedback, record_macro_feedback
+from pokedex_completer_gen5.emulator.macro_visual_verifier import verify_macro_visual_change
 from pokedex_completer_gen5.emulator.macros import run_close_menu_macro, run_open_menu_macro
 from pokedex_completer_gen5.emulator.native_bridge import NativeBridgeError, native_bridge, wait_for_native_bridge
 from pokedex_completer_gen5.emulator.rom import identify_rom
+from pokedex_completer_gen5.emulator.screen_classifier import classify_screenshot
 from pokedex_completer_gen5.emulator.vision import analyze_screenshot
 from pokedex_completer_gen5.emulator.visual_wait import capture_informative_screenshot
 from pokedex_completer_gen5.integrations.env import load_environment
@@ -351,15 +353,10 @@ def _run_macro_with_visual_verification(
         advance_frames=request.visual_advance_frames if request else 30,
     )
     payload = macro.to_dict()
-    payload["verification"] = {
-        "mode": "visual-informative-v1",
-        "before": visual_before.to_dict(),
-        "after": visual_after.to_dict(),
-        "status": "visual-ready" if visual_after.ok else "visual-not-informative",
-        "note": "This checks screenshot usefulness, not menu semantics yet.",
-    }
+    verification = verify_macro_visual_change(macro_name, visual_before, visual_after)
+    payload["verification"] = verification.to_dict()
     persist_macro_attempt(payload)
-    status = "accepted" if visual_after.ok else "needs-human"
+    status = "accepted" if verification.status == "verified-success" else "needs-human"
     validator_event = record_validator_event(
         "macro_visual_verification",
         f"{macro_name} visual check: {payload['verification']['status']}",
@@ -494,7 +491,9 @@ def emulator_latest_screenshot_analysis() -> dict[str, Any]:
     if path is None or not path.exists():
         raise HTTPException(status_code=404, detail="No screenshot artifact exists yet")
     try:
-        return analyze_screenshot(path)
+        analysis = analyze_screenshot(path)
+        analysis["classification"] = classify_screenshot(path).to_dict()
+        return analysis
     except RuntimeError as exc:
         raise HTTPException(status_code=501, detail=str(exc)) from exc
 

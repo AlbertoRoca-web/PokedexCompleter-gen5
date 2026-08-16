@@ -117,7 +117,7 @@ def test_emulator_macro_open_menu_endpoint(monkeypatch: pytest.MonkeyPatch) -> N
     assert response.json()["status"] == "executed-needs-human-confirmation"
     assert ("press", {"button": "X", "frames": 1}) in calls
     assert ("frame_advance", {"frames": 7}) in calls
-    assert response.json()["verification"]["mode"] == "visual-informative-v1"
+    assert response.json()["verification"]["mode"] == "visual-macro-v1"
     assert response.json()["validator_event"]["event_type"] == "macro_visual_verification"
 
 
