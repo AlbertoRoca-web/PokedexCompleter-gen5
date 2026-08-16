@@ -17,6 +17,9 @@ class MemoryField:
     address: int
     length: int = 1
     kind: str = "u8"
+    meaning: dict[str, list[int]] = field(default_factory=dict)
+    confidence: str = "unknown"
+    evidence: str = ""
 
 
 @dataclass(frozen=True)
@@ -124,8 +127,21 @@ def _parse_memory_field(raw_field: Any) -> MemoryField | None:
             address=address,
             length=int(raw_field.get("length", 1)),
             kind=str(raw_field.get("kind", "u8")),
+            meaning=_parse_meaning(raw_field.get("meaning", {})),
+            confidence=str(raw_field.get("confidence", "unknown")),
+            evidence=str(raw_field.get("evidence", "")),
         )
     raise ValueError(f"Unsupported memory field: {raw_field!r}")
+
+
+def _parse_meaning(raw_meaning: Any) -> dict[str, list[int]]:
+    if not isinstance(raw_meaning, dict):
+        return {}
+    parsed: dict[str, list[int]] = {}
+    for name, raw_values in raw_meaning.items():
+        if isinstance(raw_values, list):
+            parsed[str(name)] = [int(value) for value in raw_values]
+    return parsed
 
 
 def _parse_enum_maps(raw_maps: Any) -> dict[str, dict[str, str]]:
@@ -160,6 +176,9 @@ def _read_known_fields(bridge_request: BridgeRequest, profile: MemoryProfile) ->
                 "hex_address": f"0x{memory_field.address:X}",
                 "length": memory_field.length,
                 "kind": memory_field.kind,
+                "meaning": memory_field.meaning,
+                "confidence": memory_field.confidence,
+                "evidence": memory_field.evidence,
             },
             "response": response,
             "value": _decode_value(response, memory_field),
@@ -183,12 +202,15 @@ def _interpret_state(profile: MemoryProfile, raw_values: dict[str, Any]) -> dict
     menu_state = _field_value(raw_values, "menu_state")
     battle_state = _field_value(raw_values, "battle_state")
     transition_state = _field_value(raw_values, "transition_state")
+    menu_open = _semantic_bool(profile, raw_values, "menu_state", true_label="open", false_label="closed")
+    battle_active = _semantic_bool(profile, raw_values, "battle_state", true_label="active", false_label="inactive")
+    transitioning = _semantic_bool(profile, raw_values, "transition_state", true_label="active", false_label="inactive")
     mode = "unknown"
-    if battle_state not in {None, 0}:
+    if battle_active is True or (battle_active is None and battle_state not in {None, 0}):
         mode = "battle"
-    elif menu_state not in {None, 0}:
+    elif menu_open is True or (menu_open is None and menu_state not in {None, 0}):
         mode = "menu"
-    elif transition_state not in {None, 0}:
+    elif transitioning is True or (transitioning is None and transition_state not in {None, 0}):
         mode = "transition"
     elif raw_values:
         mode = "overworld"
@@ -196,9 +218,9 @@ def _interpret_state(profile: MemoryProfile, raw_values: dict[str, Any]) -> dict
     return {
         "game_profile": profile.profile_id,
         "mode": mode,
-        "menu_open": None if menu_state is None else menu_state != 0,
-        "battle_active": None if battle_state is None else battle_state != 0,
-        "transitioning": None if transition_state is None else transition_state != 0,
+        "menu_open": menu_open,
+        "battle_active": battle_active,
+        "transitioning": transitioning,
         "position": {
             "map_id": _field_value(raw_values, "map_id"),
             "x": _field_value(raw_values, "player_x"),
@@ -207,6 +229,27 @@ def _interpret_state(profile: MemoryProfile, raw_values: dict[str, Any]) -> dict
             "facing_raw": facing_value,
         },
     }
+
+
+def _semantic_bool(
+    profile: MemoryProfile,
+    raw_values: dict[str, Any],
+    field_name: str,
+    *,
+    true_label: str,
+    false_label: str,
+) -> bool | None:
+    value = _field_value(raw_values, field_name)
+    if value is None:
+        return None
+    memory_field = profile.fields.get(field_name)
+    if memory_field is None:
+        return None
+    if value in memory_field.meaning.get(true_label, []):
+        return True
+    if value in memory_field.meaning.get(false_label, []):
+        return False
+    return None
 
 
 def _score_state(profile: MemoryProfile, raw_values: dict[str, Any], state: dict[str, Any]) -> tuple[float, list[str]]:

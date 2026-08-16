@@ -4,7 +4,17 @@
   "domain": "ARM9 System Bus",
   "notes": "Offsets are intentionally unknown until verified by RAM probes. Do not guess.",
   "fields": {
-    "menu_state": null,
+    "menu_state": {
+      "address": "0x020A84BF",
+      "length": 1,
+      "kind": "u8",
+      "meaning": {
+        "closed": [6],
+        "open": [7]
+      },
+      "confidence": "tentative",
+      "evidence": ".runtime/ram-validation/20260816T220100Z-menu-cycle.json"
+    },
     "battle_state": null,
     "map_id": null,
     "player_x": null,

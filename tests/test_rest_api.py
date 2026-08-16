@@ -137,16 +137,20 @@ def test_emulator_speed_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_emulator_semantic_state_endpoint_uses_memory_profile(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_bridge_request(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
-        assert method == "bridge.info"
-        return {"ok": True, "method": method, "frame_count": 7}
+        if method == "bridge.info":
+            return {"ok": True, "method": method, "frame_count": 7}
+        if method == "memory.read_bytes":
+            return {"ok": True, "method": method, "values_csv": "6", "hex": "06"}
+        raise AssertionError(method)
 
     monkeypatch.setattr("pokedex_completer_gen5.server.rest.bridge_request", fake_bridge_request)
     client = TestClient(app)
     response = client.get("/api/emulator/semantic-state")
 
     assert response.status_code == 200
-    assert response.json()["mode"] == "unknown"
-    assert "menu_state" in response.json()["missing_profile_fields"]
+    assert response.json()["mode"] == "overworld"
+    assert response.json()["state"]["menu_open"] is False
+    assert "battle_state" in response.json()["missing_profile_fields"]
     assert response.json()["profile"]["profile_id"] == "white_us_eu"
 
 
