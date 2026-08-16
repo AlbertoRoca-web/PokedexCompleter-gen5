@@ -142,11 +142,13 @@ DASHBOARD_HTML = """<!doctype html>
 </main>
 <script>
 async function runReport() {
+  await logUiEvent('read_save_clicked', currentUiState());
   const error = document.getElementById('error');
   error.textContent = '';
   const savePath = document.getElementById('savePath').value.trim();
   if (!savePath) {
     error.textContent = 'Paste or quick-fill a real .sav path first. Placeholder text is not a value.';
+    await logUiEvent('read_save_blocked_empty_path', currentUiState());
     return;
   }
   const payload = {
@@ -165,9 +167,15 @@ async function runReport() {
     });
     const data = await readJsonOrText(response);
     if (!response.ok) throw new Error(formatApiError(data));
+    await logUiEvent('read_save_success', {
+      target_count: data.target_count,
+      missing_count: data.missing_count,
+      policy: data.target_policy
+    });
     renderReport(data);
   } catch (err) {
     error.textContent = err.message || String(err);
+    await logUiEvent('read_save_error', { error: error.textContent, state: currentUiState() });
   }
 }
 
@@ -196,13 +204,16 @@ function renderReport(data) {
 function fillSavePath(path, game) {
   document.getElementById('savePath').value = path;
   document.getElementById('game').value = game;
+  logUiEvent('quick_fill_save_path', { path, game });
 }
 
 async function emulatorState() {
+  await logUiEvent('emulator_get_state_clicked', {});
   await apiToPre('/api/emulator/state', { method: 'GET' }, 'emulatorOutput');
 }
 
 async function emulatorPost(url, body) {
+  await logUiEvent('emulator_action_clicked', { url, body });
   await apiToPre(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -251,17 +262,20 @@ function connectTelemetry() {
 
 async function voiceConfig() {
   const mode = document.getElementById('voiceMode').value;
+  await logUiEvent('voice_config_clicked', { mode });
   await apiToPre('/api/voice/config?mode=' + encodeURIComponent(mode), { method: 'GET' }, 'voiceOutput');
 }
 
 async function voiceRealtimeSession() {
   const mode = document.getElementById('voiceMode').value;
+  await logUiEvent('voice_realtime_session_clicked', { mode });
   await apiToPre('/api/voice/realtime-session?mode=' + encodeURIComponent(mode), {
     method: 'POST'
   }, 'voiceOutput');
 }
 
 async function validatorEvent() {
+  await logUiEvent('validator_event_clicked', {});
   await apiToPre('/api/validator/events', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -279,8 +293,10 @@ async function apiToPre(url, options, elementId) {
     const response = await fetch(url, options);
     const data = await readJsonOrText(response);
     element.textContent = JSON.stringify(data, null, 2);
+    await logUiEvent('api_response', { url, ok: response.ok, status: response.status, data });
   } catch (err) {
     element.textContent = err.message || String(err);
+    await logUiEvent('api_error', { url, error: element.textContent });
   }
 }
 
@@ -299,7 +315,31 @@ function formatApiError(data) {
   return JSON.stringify(data, null, 2);
 }
 
+function currentUiState() {
+  return {
+    save_path_present: Boolean(document.getElementById('savePath').value.trim()),
+    game: document.getElementById('game').value,
+    scope: document.getElementById('scope').value,
+    target_policy: document.getElementById('targetPolicy').value,
+    include_party: document.getElementById('includeParty').checked,
+    voice_mode: document.getElementById('voiceMode').value
+  };
+}
+
+async function logUiEvent(eventType, payload) {
+  try {
+    await fetch('/api/ui/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: eventType, payload })
+    });
+  } catch {
+    // UI telemetry must never break the dashboard.
+  }
+}
+
 document.getElementById('run').addEventListener('click', runReport);
+logUiEvent('dashboard_loaded', currentUiState());
 connectTelemetry();
 </script>
 </body>

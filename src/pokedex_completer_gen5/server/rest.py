@@ -47,6 +47,11 @@ class EmulatorCheckpointRequest(BaseModel):
     name: str = Field(min_length=1, max_length=80)
 
 
+class UiEventRequest(BaseModel):
+    event_type: str = Field(min_length=1, max_length=120)
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
 class ValidatorEventRequest(BaseModel):
     event_type: str
     message: str
@@ -103,6 +108,12 @@ def bridge_response(event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def bridge_error(event_type: str, exc: BizHawkBridgeError) -> HTTPException:
+    payload = {"error": str(exc), "hint": "Start BizHawk, load the ROM, and run lua/bizhawk_gen5_bridge.lua."}
+    record_telemetry_event(event_type, payload)
+    return HTTPException(status_code=503, detail=payload)
+
+
 @app.websocket("/ws/telemetry")
 async def websocket_telemetry(websocket: WebSocket) -> None:
     await telemetry_websocket(websocket)
@@ -113,12 +124,18 @@ def telemetry(limit: int = 50) -> dict[str, Any]:
     return {"events": recent_telemetry_events(limit=limit)}
 
 
+@app.post("/api/ui/events")
+def ui_event(request: UiEventRequest) -> dict[str, Any]:
+    event = record_telemetry_event(f"ui.{request.event_type}", request.payload)
+    return event.to_dict()
+
+
 @app.get("/api/emulator/state")
 def emulator_state() -> dict[str, Any]:
     try:
         return bridge_response("emulator.state", bridge_client().get_state())
     except BizHawkBridgeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise bridge_error("emulator.state.error", exc) from exc
 
 
 @app.post("/api/emulator/press")
@@ -129,7 +146,7 @@ def emulator_press(request: EmulatorPressRequest) -> dict[str, Any]:
             bridge_client().press(request.button, frames=request.frames),
         )
     except BizHawkBridgeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise bridge_error("emulator.press.error", exc) from exc
 
 
 @app.post("/api/emulator/press-sequence")
@@ -140,7 +157,7 @@ def emulator_press_sequence(request: EmulatorPressSequenceRequest) -> dict[str, 
             bridge_client().press_sequence(request.buttons, frames=request.frames, gap_frames=request.gap_frames),
         )
     except BizHawkBridgeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise bridge_error("emulator.press_sequence.error", exc) from exc
 
 
 @app.post("/api/emulator/frame-advance")
@@ -148,7 +165,7 @@ def emulator_frame_advance(request: EmulatorFrameAdvanceRequest) -> dict[str, An
     try:
         return bridge_response("emulator.frame_advance", bridge_client().frame_advance(frames=request.frames))
     except BizHawkBridgeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise bridge_error("emulator.frame_advance.error", exc) from exc
 
 
 @app.post("/api/emulator/pause")
@@ -156,7 +173,7 @@ def emulator_pause() -> dict[str, Any]:
     try:
         return bridge_response("emulator.pause", bridge_client().pause())
     except BizHawkBridgeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise bridge_error("emulator.pause.error", exc) from exc
 
 
 @app.post("/api/emulator/resume")
@@ -164,7 +181,7 @@ def emulator_resume() -> dict[str, Any]:
     try:
         return bridge_response("emulator.resume", bridge_client().resume())
     except BizHawkBridgeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise bridge_error("emulator.resume.error", exc) from exc
 
 
 @app.post("/api/emulator/checkpoint/save")
@@ -172,7 +189,7 @@ def emulator_save_checkpoint(request: EmulatorCheckpointRequest) -> dict[str, An
     try:
         return bridge_response("emulator.save_checkpoint", bridge_client().save_checkpoint(request.name))
     except BizHawkBridgeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise bridge_error("emulator.save_checkpoint.error", exc) from exc
 
 
 @app.post("/api/emulator/checkpoint/load")
@@ -180,7 +197,7 @@ def emulator_load_checkpoint(request: EmulatorCheckpointRequest) -> dict[str, An
     try:
         return bridge_response("emulator.load_checkpoint", bridge_client().load_checkpoint(request.name))
     except BizHawkBridgeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise bridge_error("emulator.load_checkpoint.error", exc) from exc
 
 
 @app.get("/api/emulator/screenshot")
@@ -188,7 +205,7 @@ def emulator_screenshot() -> dict[str, Any]:
     try:
         return bridge_response("emulator.screenshot", bridge_client().screenshot())
     except BizHawkBridgeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise bridge_error("emulator.screenshot.error", exc) from exc
 
 
 @app.get("/api/voice/config")
