@@ -147,10 +147,11 @@ class NativeBridgeServer:
 
 def _strip_bizhawk_frame_prefix(message: str) -> str:
     length_text, separator, payload = message.partition(" ")
-    if separator and length_text.isdigit():
-        expected_length = int(length_text)
-        if len(payload) == expected_length:
-            return payload
+    if separator and length_text.isdigit() and payload.lstrip().startswith("{"):
+        # BizHawk documents native socket responses as "<length> <payload>".
+        # In practice the reported length can disagree with Python's decoded str length
+        # because encodings/newlines are goblins. The JSON start is the useful contract.
+        return payload.lstrip()
     return message
 
 
