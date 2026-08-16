@@ -14,6 +14,20 @@ def test_default_memory_profile_has_tentative_menu_state() -> None:
     assert "battle_state" in profile.missing_fields()
 
 
+def test_semantic_state_unknown_mapped_menu_value_does_not_fallback_to_nonzero() -> None:
+    def fake_bridge(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if method == "bridge.info":
+            return {"ok": True, "frame_count": 123, "approx_framerate": 240}
+        if method == "memory.read_bytes":
+            return {"ok": True, "values_csv": "12", "hex": "0C"}
+        raise AssertionError(method)
+
+    payload = build_semantic_state(fake_bridge, profile_id="white_us_eu").to_dict()
+
+    assert payload["mode"] == "unknown"
+    assert payload["state"]["menu_open"] is None
+
+
 def test_semantic_state_uses_tentative_menu_value_map() -> None:
     calls: list[tuple[str, dict[str, Any] | None]] = []
 

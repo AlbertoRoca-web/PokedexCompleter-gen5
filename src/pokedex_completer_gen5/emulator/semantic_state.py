@@ -206,13 +206,13 @@ def _interpret_state(profile: MemoryProfile, raw_values: dict[str, Any]) -> dict
     battle_active = _semantic_bool(profile, raw_values, "battle_state", true_label="active", false_label="inactive")
     transitioning = _semantic_bool(profile, raw_values, "transition_state", true_label="active", false_label="inactive")
     mode = "unknown"
-    if battle_active is True or (battle_active is None and battle_state not in {None, 0}):
+    if battle_active is True or _legacy_nonzero_state(profile, "battle_state", battle_active, battle_state):
         mode = "battle"
-    elif menu_open is True or (menu_open is None and menu_state not in {None, 0}):
+    elif menu_open is True or _legacy_nonzero_state(profile, "menu_state", menu_open, menu_state):
         mode = "menu"
-    elif transitioning is True or (transitioning is None and transition_state not in {None, 0}):
+    elif transitioning is True or _legacy_nonzero_state(profile, "transition_state", transitioning, transition_state):
         mode = "transition"
-    elif raw_values:
+    elif menu_open is False and battle_active is not True and transitioning is not True:
         mode = "overworld"
     facing_value = _field_value(raw_values, "facing")
     return {
@@ -250,6 +250,18 @@ def _semantic_bool(
     if value in memory_field.meaning.get(false_label, []):
         return False
     return None
+
+
+def _legacy_nonzero_state(
+    profile: MemoryProfile,
+    field_name: str,
+    semantic_value: bool | None,
+    raw_value: int | None,
+) -> bool:
+    memory_field = profile.fields.get(field_name)
+    if memory_field is None or memory_field.meaning:
+        return False
+    return semantic_value is None and raw_value not in {None, 0}
 
 
 def _score_state(profile: MemoryProfile, raw_values: dict[str, Any], state: dict[str, Any]) -> tuple[float, list[str]]:
