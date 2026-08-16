@@ -60,6 +60,23 @@ class EmulatorSettings(BaseSettings):
     native_bridge_timeout_seconds: float = Field(default=5.0, alias="BIZHAWK_NATIVE_BRIDGE_TIMEOUT_SECONDS")
 
 
+class TimingSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    speed_profile: str = Field(default="fast", alias="RLD_SPEED_PROFILE")
+    macro_wait_frames: int = Field(default=12, alias="RLD_MACRO_WAIT_FRAMES")
+    macro_visual_max_attempts: int = Field(default=3, alias="RLD_MACRO_VISUAL_MAX_ATTEMPTS")
+    macro_visual_advance_frames: int = Field(default=20, alias="RLD_MACRO_VISUAL_ADVANCE_FRAMES")
+    title_initial_wait_frames: int = Field(default=120, alias="RLD_TITLE_INITIAL_WAIT_FRAMES")
+    title_wait_after_start_frames: int = Field(default=30, alias="RLD_TITLE_WAIT_AFTER_START_FRAMES")
+    title_wait_after_continue_frames: int = Field(default=120, alias="RLD_TITLE_WAIT_AFTER_CONTINUE_FRAMES")
+    title_visual_max_attempts: int = Field(default=4, alias="RLD_TITLE_VISUAL_MAX_ATTEMPTS")
+    title_visual_advance_frames: int = Field(default=30, alias="RLD_TITLE_VISUAL_ADVANCE_FRAMES")
+    title_press_frames: int = Field(default=5, alias="RLD_TITLE_PRESS_FRAMES")
+    title_change_max_attempts: int = Field(default=10, alias="RLD_TITLE_CHANGE_MAX_ATTEMPTS")
+    title_change_advance_frames: int = Field(default=120, alias="RLD_TITLE_CHANGE_ADVANCE_FRAMES")
+
+
 class RuntimeSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -73,6 +90,7 @@ class AppSettings(BaseSettings):
     ai: AISettings = Field(default_factory=AISettings)
     emulator: EmulatorSettings = Field(default_factory=EmulatorSettings)
     runtime: RuntimeSettings = Field(default_factory=RuntimeSettings)
+    timing: TimingSettings = Field(default_factory=TimingSettings)
 
 
 @lru_cache(maxsize=1)

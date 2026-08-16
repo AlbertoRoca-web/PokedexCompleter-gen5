@@ -91,6 +91,7 @@ DASHBOARD_HTML = """<!doctype html>
     <div class="button-row">
       <button type="button" onclick="launchBizHawk()">Launch BizHawk + White</button>
       <button type="button" onclick="diagnoseBridge()">Diagnose Bridge</button>
+      <button type="button" onclick="ensureReady()">Ensure Ready</button>
       <button type="button" onclick="emulatorState()">Get State</button>
       <button type="button" onclick="pressButton('confirm')">Confirm (A / keyboard X)</button>
       <button type="button" onclick="pressButton('cancel')">Cancel (B / keyboard Z)</button>
@@ -122,7 +123,7 @@ DASHBOARD_HTML = """<!doctype html>
     <div class="button-row">
       <button type="button" onclick="runMacro('/api/emulator/macro/open-menu')">Open Menu Macro</button>
       <button type="button" onclick="runMacro('/api/emulator/macro/close-menu')">Close Menu Macro</button>
-      <button type="button" onclick="runMacro('/api/emulator/macro/resume-save-from-title')">
+      <button type="button" onclick="runTitleResumeMacro()">
         Title → Continue Save
       </button>
       <button type="button" onclick="macroFeedback('success')">Macro Worked</button>
@@ -315,12 +316,39 @@ async function checkpointLoad() {
   await emulatorPost('/api/emulator/checkpoint/load', { name: 'manual' });
 }
 
+async function ensureReady() {
+  await apiToPre('/api/emulator/ensure-ready', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ relaunch_if_needed: true })
+  }, 'emulatorOutput');
+}
+
 async function runMacro(url) {
   await logUiEvent('emulator_macro_clicked', { url });
   await apiToPre(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ wait_frames: 20 })
+    body: JSON.stringify({ wait_frames: 12, visual_max_attempts: 3, visual_advance_frames: 20 })
+  }, 'emulatorOutput', renderMacroStatus);
+}
+
+async function runTitleResumeMacro() {
+  const payload = {
+    initial_wait_frames: 120,
+    wait_after_start_frames: 30,
+    wait_after_continue_frames: 120,
+    visual_max_attempts: 4,
+    visual_advance_frames: 30,
+    press_frames: 5,
+    change_max_attempts: 10,
+    change_advance_frames: 120
+  };
+  await logUiEvent('emulator_macro_clicked', { url: '/api/emulator/macro/resume-save-from-title', payload });
+  await apiToPre('/api/emulator/macro/resume-save-from-title', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
   }, 'emulatorOutput', renderMacroStatus);
 }
 

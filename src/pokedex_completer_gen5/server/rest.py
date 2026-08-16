@@ -23,6 +23,7 @@ from pokedex_completer_gen5.emulator.macro_feedback import recent_macro_feedback
 from pokedex_completer_gen5.emulator.macro_visual_verifier import verify_macro_visual_change
 from pokedex_completer_gen5.emulator.macros import run_close_menu_macro, run_open_menu_macro
 from pokedex_completer_gen5.emulator.native_bridge import NativeBridgeError, native_bridge, wait_for_native_bridge
+from pokedex_completer_gen5.emulator.readiness import ensure_emulator_ready
 from pokedex_completer_gen5.emulator.rom import identify_rom
 from pokedex_completer_gen5.emulator.screen_classifier import classify_screenshot
 from pokedex_completer_gen5.emulator.title_flow import run_resume_saved_game_from_title
@@ -45,6 +46,7 @@ from pokedex_completer_gen5.server.telemetry import (
     record_telemetry_event,
     telemetry_websocket,
 )
+from pokedex_completer_gen5.settings import get_settings
 from pokedex_completer_gen5.trajectory import read_jsonl_events
 
 load_environment()
@@ -57,6 +59,10 @@ class EmulatorLaunchRequest(BaseModel):
     install_save: bool = True
     restart_existing: bool = True
     wait_for_bridge: bool = True
+
+
+class EmulatorEnsureReadyRequest(BaseModel):
+    relaunch_if_needed: bool = True
 
 
 class EmulatorPressRequest(BaseModel):
@@ -75,9 +81,9 @@ class EmulatorFrameAdvanceRequest(BaseModel):
 
 
 class EmulatorMacroRequest(BaseModel):
-    wait_frames: int = Field(default=20, ge=1, le=180)
-    visual_max_attempts: int = Field(default=3, ge=1, le=10)
-    visual_advance_frames: int = Field(default=30, ge=1, le=300)
+    wait_frames: int = Field(default=get_settings().timing.macro_wait_frames, ge=1, le=180)
+    visual_max_attempts: int = Field(default=get_settings().timing.macro_visual_max_attempts, ge=1, le=10)
+    visual_advance_frames: int = Field(default=get_settings().timing.macro_visual_advance_frames, ge=1, le=300)
 
 
 class InformativeScreenshotRequest(BaseModel):
@@ -87,14 +93,18 @@ class InformativeScreenshotRequest(BaseModel):
 
 
 class TitleResumeRequest(BaseModel):
-    initial_wait_frames: int = Field(default=60, ge=0, le=1200)
-    wait_after_start_frames: int = Field(default=90, ge=1, le=1200)
-    wait_after_continue_frames: int = Field(default=600, ge=1, le=2400)
-    visual_max_attempts: int = Field(default=5, ge=1, le=20)
-    visual_advance_frames: int = Field(default=30, ge=1, le=600)
-    press_frames: int = Field(default=4, ge=1, le=30)
-    change_max_attempts: int = Field(default=8, ge=1, le=30)
-    change_advance_frames: int = Field(default=90, ge=1, le=1200)
+    initial_wait_frames: int = Field(default=get_settings().timing.title_initial_wait_frames, ge=0, le=1200)
+    wait_after_start_frames: int = Field(default=get_settings().timing.title_wait_after_start_frames, ge=1, le=1200)
+    wait_after_continue_frames: int = Field(
+        default=get_settings().timing.title_wait_after_continue_frames,
+        ge=1,
+        le=2400,
+    )
+    visual_max_attempts: int = Field(default=get_settings().timing.title_visual_max_attempts, ge=1, le=20)
+    visual_advance_frames: int = Field(default=get_settings().timing.title_visual_advance_frames, ge=1, le=600)
+    press_frames: int = Field(default=get_settings().timing.title_press_frames, ge=1, le=30)
+    change_max_attempts: int = Field(default=get_settings().timing.title_change_max_attempts, ge=1, le=30)
+    change_advance_frames: int = Field(default=get_settings().timing.title_change_advance_frames, ge=1, le=1200)
 
 
 class EmulatorMacroFeedbackRequest(BaseModel):
@@ -264,6 +274,13 @@ def emulator_diagnostics() -> dict[str, Any]:
     bridge_config = bizhawk_config_from_env()
     payload = add_native_diagnosis(build_emulator_diagnostics(launch_config, bridge_config))
     record_telemetry_event("emulator.diagnostics", payload)
+    return payload
+
+
+@app.post("/api/emulator/ensure-ready")
+def emulator_ensure_ready(request: EmulatorEnsureReadyRequest | None = None) -> dict[str, Any]:
+    payload = ensure_emulator_ready(relaunch_if_needed=request.relaunch_if_needed if request else True).to_dict()
+    record_telemetry_event("emulator.ensure_ready", payload)
     return payload
 
 

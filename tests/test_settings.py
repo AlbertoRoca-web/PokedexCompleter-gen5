@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pokedex_completer_gen5.settings import AISettings, EmulatorSettings, RuntimeSettings, get_settings
+from pokedex_completer_gen5.settings import AISettings, EmulatorSettings, RuntimeSettings, TimingSettings, get_settings
 
 
 def test_ai_settings_defaults_are_cost_routed() -> None:
@@ -23,6 +23,15 @@ def test_emulator_settings_accept_env_aliases(monkeypatch) -> None:  # type: ign
 
     assert settings.native_bridge_port == 9876
     assert settings.pokemon_white_save == Path(r"D:\saves\POKEMON W.sav")
+
+
+def test_timing_settings_default_to_fast_profile() -> None:
+    settings = TimingSettings()
+
+    assert settings.speed_profile == "fast"
+    assert settings.title_press_frames == 5
+    assert settings.title_change_advance_frames == 120
+    assert settings.macro_wait_frames == 12
 
 
 def test_runtime_settings_defaults_to_local_runtime_dir() -> None:
