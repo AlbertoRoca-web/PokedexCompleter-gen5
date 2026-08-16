@@ -13,6 +13,7 @@ from pokedex_completer_gen5.agents.validator_store import recent_validator_event
 from pokedex_completer_gen5.agents.voice import build_voice_config, create_realtime_session
 from pokedex_completer_gen5.dex.pc_living_dex import build_pc_living_dex_report
 from pokedex_completer_gen5.emulator.bizhawk_client import BizHawkBridgeError, BizHawkClient, bizhawk_config_from_env
+from pokedex_completer_gen5.emulator.diagnostics import build_emulator_diagnostics, wait_for_bridge
 from pokedex_completer_gen5.emulator.launcher import bizhawk_launch_config_from_env, launch_bizhawk
 from pokedex_completer_gen5.integrations.env import load_environment
 from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
@@ -33,6 +34,7 @@ class EmulatorLaunchRequest(BaseModel):
     rom_path: Path | None = None
     install_save: bool = True
     restart_existing: bool = True
+    wait_for_bridge: bool = True
 
 
 class EmulatorPressRequest(BaseModel):
@@ -137,6 +139,15 @@ def ui_event(request: UiEventRequest) -> dict[str, Any]:
     return event.to_dict()
 
 
+@app.get("/api/emulator/diagnostics")
+def emulator_diagnostics() -> dict[str, Any]:
+    launch_config = bizhawk_launch_config_from_env()
+    bridge_config = bizhawk_config_from_env()
+    payload = build_emulator_diagnostics(launch_config, bridge_config)
+    record_telemetry_event("emulator.diagnostics", payload)
+    return payload
+
+
 @app.post("/api/emulator/launch")
 def emulator_launch(request: EmulatorLaunchRequest | None = None) -> dict[str, Any]:
     try:
@@ -146,6 +157,9 @@ def emulator_launch(request: EmulatorLaunchRequest | None = None) -> dict[str, A
             install_save=request.install_save if request else True,
             restart_existing=request.restart_existing if request else True,
         )
+        if request is None or request.wait_for_bridge:
+            payload["bridge_after_launch"] = wait_for_bridge(bizhawk_config_from_env())
+            payload["diagnostics"] = build_emulator_diagnostics(config, bizhawk_config_from_env())
         record_telemetry_event("emulator.launch", payload)
         return payload
     except FileNotFoundError as exc:

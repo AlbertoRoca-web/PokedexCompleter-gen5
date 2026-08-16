@@ -24,6 +24,13 @@ DASHBOARD_HTML = """<!doctype html>
     th, td { border-bottom: 1px solid #344b5c; padding: .5rem; text-align: left; }
     .muted { color: #b8c7d4; }
     .error { color: #feb2b2; white-space: pre-wrap; }
+    .status-panel {
+      background: #0f1720; border: 1px solid #344b5c; border-radius: 10px;
+      padding: .75rem; margin: .75rem 0;
+    }
+    .status-ready { border-color: #68d391; }
+    .status-warn { border-color: #f6ad55; }
+    .status-bad { border-color: #fc8181; }
   </style>
 </head>
 <body>
@@ -83,6 +90,7 @@ DASHBOARD_HTML = """<!doctype html>
     </p>
     <div class="button-row">
       <button type="button" onclick="launchBizHawk()">Launch BizHawk + White</button>
+      <button type="button" onclick="diagnoseBridge()">Diagnose Bridge</button>
       <button type="button" onclick="emulatorState()">Get State</button>
       <button type="button" onclick="pressButton('A')">A</button>
       <button type="button" onclick="pressButton('B')">B</button>
@@ -99,6 +107,9 @@ DASHBOARD_HTML = """<!doctype html>
       <button type="button" onclick="checkpointSave()">Save CP</button>
       <button type="button" onclick="checkpointLoad()">Load CP</button>
       <button type="button" onclick="emulatorScreenshot()">Screenshot</button>
+    </div>
+    <div id="emulatorStatus" class="status-panel status-warn">
+      Status: not checked yet. Click Launch or Diagnose.
     </div>
     <pre id="emulatorOutput">Not connected.</pre>
   </section>
@@ -214,12 +225,21 @@ function fillSavePath(path, game) {
 
 async function launchBizHawk() {
   await logUiEvent('emulator_launch_clicked', {});
-  await emulatorPost('/api/emulator/launch', {});
+  await apiToPre('/api/emulator/launch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ wait_for_bridge: true })
+  }, 'emulatorOutput', renderEmulatorStatus);
+}
+
+async function diagnoseBridge() {
+  await logUiEvent('emulator_diagnostics_clicked', {});
+  await apiToPre('/api/emulator/diagnostics', { method: 'GET' }, 'emulatorOutput', renderEmulatorStatus);
 }
 
 async function emulatorState() {
   await logUiEvent('emulator_get_state_clicked', {});
-  await apiToPre('/api/emulator/state', { method: 'GET' }, 'emulatorOutput');
+  await apiToPre('/api/emulator/state', { method: 'GET' }, 'emulatorOutput', renderEmulatorStatus);
 }
 
 async function emulatorPost(url, body) {
@@ -297,12 +317,41 @@ async function validatorEvent() {
   }, 'voiceOutput');
 }
 
-async function apiToPre(url, options, elementId) {
+function renderEmulatorStatus(data) {
+  const status = document.getElementById('emulatorStatus');
+  const diagnostics = data.diagnostics ?? data;
+  const diagnosis = diagnostics.diagnosis;
+  const bridgeAfterLaunch = data.bridge_after_launch;
+  if (!diagnosis && !bridgeAfterLaunch && !data.detail) return;
+
+  let html = '';
+  let css = 'status-panel status-warn';
+  if (diagnosis) {
+    css = diagnosis.status === 'ready' ? 'status-panel status-ready' : 'status-panel status-bad';
+    html += `<strong>${diagnosis.status}</strong><br>${diagnosis.message}<br>`;
+    html += `<span class="muted">Next: ${diagnosis.next_step}</span>`;
+  }
+  if (!diagnosis && data.detail) {
+    css = 'status-panel status-bad';
+    const detail = typeof data.detail === 'string' ? { error: data.detail } : data.detail;
+    html += `<strong>bridge-error</strong><br>${detail.error ?? JSON.stringify(detail)}<br>`;
+    if (detail.hint) html += `<span class="muted">Next: ${detail.hint}</span>`;
+  }
+  if (bridgeAfterLaunch) {
+    html += `<br><span class="muted">Bridge wait: ${bridgeAfterLaunch.ok ? 'connected' : 'not connected'} `;
+    html += `after ${bridgeAfterLaunch.attempts} attempt(s).</span>`;
+  }
+  status.className = css;
+  status.innerHTML = html;
+}
+
+async function apiToPre(url, options, elementId, renderer) {
   const element = document.getElementById(elementId);
   try {
     const response = await fetch(url, options);
     const data = await readJsonOrText(response);
     element.textContent = JSON.stringify(data, null, 2);
+    if (renderer) renderer(data);
     await logUiEvent('api_response', { url, ok: response.ok, status: response.status, data });
   } catch (err) {
     element.textContent = err.message || String(err);
