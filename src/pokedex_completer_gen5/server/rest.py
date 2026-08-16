@@ -126,6 +126,7 @@ class TitleResumeRequest(BaseModel):
     visual_max_attempts: int = Field(default=get_settings().timing.title_visual_max_attempts, ge=1, le=20)
     visual_advance_frames: int = Field(default=get_settings().timing.title_visual_advance_frames, ge=1, le=600)
     press_frames: int = Field(default=get_settings().timing.title_press_frames, ge=1, le=30)
+    continue_press_frames: int = Field(default=30, ge=1, le=90)
     change_max_attempts: int = Field(default=get_settings().timing.title_change_max_attempts, ge=1, le=30)
     change_advance_frames: int = Field(default=get_settings().timing.title_change_advance_frames, ge=1, le=1200)
 
@@ -485,6 +486,7 @@ def emulator_macro_resume_save_from_title(request: TitleResumeRequest | None = N
             visual_max_attempts=request.visual_max_attempts if request else 5,
             visual_advance_frames=request.visual_advance_frames if request else 30,
             press_frames=request.press_frames if request else 4,
+            continue_press_frames=request.continue_press_frames if request else 30,
             change_max_attempts=request.change_max_attempts if request else 8,
             change_advance_frames=request.change_advance_frames if request else 90,
         )

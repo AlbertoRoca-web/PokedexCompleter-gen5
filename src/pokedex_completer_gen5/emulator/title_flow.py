@@ -60,6 +60,7 @@ def run_resume_saved_game_from_title(
     visual_max_attempts: int = 5,
     visual_advance_frames: int = 30,
     press_frames: int = 4,
+    continue_press_frames: int = 30,
     change_max_attempts: int = 8,
     change_advance_frames: int = 90,
 ) -> TitleResumeFlowResult:
@@ -108,7 +109,7 @@ def run_resume_saved_game_from_title(
         label=f"title-flow-{flow_id}-after-continue",
         phase_prefix="confirm-continue",
         action="confirm",
-        press_frames=press_frames,
+        press_frames=continue_press_frames,
         wait_frames=wait_after_continue_frames,
         max_change_attempts=change_max_attempts,
         visual_max_attempts=visual_max_attempts,
@@ -122,7 +123,7 @@ def run_resume_saved_game_from_title(
     phases.append(_advance_phase(bridge_request, "minimum-wait-after-cgear-confirm", wait_after_cgear_confirm_frames))
     final, final_phases = _observe_until_not_boot(
         bridge_request,
-        reference=after_start,
+        reference=after_continue,
         label=f"title-flow-{flow_id}-final",
         phase_prefix="final",
         max_change_attempts=change_max_attempts,
