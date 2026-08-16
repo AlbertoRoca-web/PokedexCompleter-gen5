@@ -116,6 +116,7 @@ DASHBOARD_HTML = """<!doctype html>
       <button type="button" onclick="artifactListFetch()">Artifacts</button>
       <button type="button" onclick="memoryDomainsFetch()">Memory Domains</button>
       <button type="button" onclick="romIdentityFetch()">ROM Identity</button>
+      <button type="button" onclick="emulatorInfoFetch()">Emulator Info</button>
     </div>
     <h3>Macros</h3>
     <div class="button-row">
@@ -384,6 +385,10 @@ async function memoryDomainsFetch() {
 
 async function romIdentityFetch() {
   await apiToPre('/api/emulator/rom', { method: 'GET' }, 'emulatorOutput');
+}
+
+async function emulatorInfoFetch() {
+  await apiToPre('/api/emulator/info', { method: 'GET' }, 'emulatorOutput');
 }
 
 async function telemetryFetch() {

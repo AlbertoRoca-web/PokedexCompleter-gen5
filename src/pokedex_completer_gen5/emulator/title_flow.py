@@ -54,10 +54,14 @@ def run_resume_saved_game_from_title(
     wait_after_continue_frames: int = 600,
     visual_max_attempts: int = 5,
     visual_advance_frames: int = 30,
+    press_frames: int = 4,
+    change_max_attempts: int = 8,
+    change_advance_frames: int = 90,
 ) -> TitleResumeFlowResult:
     flow_id = str(uuid4())
     phases: list[TitleFlowPhase] = []
 
+    phases.append(_info_phase(bridge_request, "bridge-info-start"))
     phases.append(_advance_phase(bridge_request, "initial-settle", initial_wait_frames))
     before = capture_informative_screenshot(
         bridge_request,
@@ -67,25 +71,34 @@ def run_resume_saved_game_from_title(
     )
     phases.append(_screenshot_phase("before", before))
 
-    phases.append(_press_phase(bridge_request, "press-start-on-title", "start"))
-    phases.append(_advance_phase(bridge_request, "wait-after-start", wait_after_start_frames))
-    after_start = capture_informative_screenshot(
+    phases.append(_press_phase(bridge_request, "press-start-on-title", "start", press_frames=press_frames))
+    phases.append(_advance_phase(bridge_request, "minimum-wait-after-start", wait_after_start_frames))
+    after_start, after_start_phases = _observe_until_changed(
         bridge_request,
+        reference=before,
         label=f"title-flow-{flow_id}-after-start",
-        max_attempts=visual_max_attempts,
-        advance_frames=visual_advance_frames,
+        phase_prefix="after-start",
+        max_change_attempts=change_max_attempts,
+        change_advance_frames=change_advance_frames,
+        visual_max_attempts=visual_max_attempts,
+        visual_advance_frames=visual_advance_frames,
     )
-    phases.append(_screenshot_phase("after-start", after_start))
+    phases.extend(after_start_phases)
 
-    phases.append(_press_phase(bridge_request, "confirm-continue", "confirm"))
-    phases.append(_advance_phase(bridge_request, "wait-after-continue", wait_after_continue_frames))
-    final = capture_informative_screenshot(
+    phases.append(_press_phase(bridge_request, "confirm-continue", "confirm", press_frames=press_frames))
+    phases.append(_advance_phase(bridge_request, "minimum-wait-after-continue", wait_after_continue_frames))
+    final, final_phases = _observe_until_not_boot(
         bridge_request,
+        reference=after_start,
         label=f"title-flow-{flow_id}-final",
-        max_attempts=visual_max_attempts,
-        advance_frames=visual_advance_frames,
+        phase_prefix="final",
+        max_change_attempts=change_max_attempts,
+        change_advance_frames=change_advance_frames,
+        visual_max_attempts=visual_max_attempts,
+        visual_advance_frames=visual_advance_frames,
     )
-    phases.append(_screenshot_phase("final", final))
+    phases.extend(final_phases)
+    phases.append(_info_phase(bridge_request, "bridge-info-end"))
 
     verification = _verify_title_resume(before, final)
     return TitleResumeFlowResult(
@@ -96,9 +109,9 @@ def run_resume_saved_game_from_title(
     )
 
 
-def _press_phase(bridge_request: BridgeRequest, name: str, action: str) -> TitleFlowPhase:
+def _press_phase(bridge_request: BridgeRequest, name: str, action: str, *, press_frames: int = 4) -> TitleFlowPhase:
     button = normalize_button_or_action(action)
-    params = {"button": button, "frames": 1}
+    params = {"button": button, "frames": press_frames}
     return TitleFlowPhase(
         name=name,
         action={"method": "press", "params": params},
@@ -115,6 +128,14 @@ def _advance_phase(bridge_request: BridgeRequest, name: str, frames: int) -> Tit
     )
 
 
+def _info_phase(bridge_request: BridgeRequest, name: str) -> TitleFlowPhase:
+    try:
+        result = bridge_request("bridge.info", None)
+    except Exception as exc:
+        result = {"ok": False, "error": str(exc)}
+    return TitleFlowPhase(name=name, action={"method": "bridge.info"}, result=result)
+
+
 def _screenshot_phase(name: str, result: InformativeScreenshotResult) -> TitleFlowPhase:
     return TitleFlowPhase(
         name=f"screenshot-{name}",
@@ -122,6 +143,78 @@ def _screenshot_phase(name: str, result: InformativeScreenshotResult) -> TitleFl
         result={"ok": result.ok, "reason": result.reason},
         screenshot=result.to_dict(),
     )
+
+
+def _observe_until_changed(
+    bridge_request: BridgeRequest,
+    *,
+    reference: InformativeScreenshotResult,
+    label: str,
+    phase_prefix: str,
+    max_change_attempts: int,
+    change_advance_frames: int,
+    visual_max_attempts: int,
+    visual_advance_frames: int,
+) -> tuple[InformativeScreenshotResult, list[TitleFlowPhase]]:
+    phases: list[TitleFlowPhase] = []
+    latest: InformativeScreenshotResult | None = None
+    for attempt in range(1, max_change_attempts + 1):
+        phases.append(_advance_phase(bridge_request, f"{phase_prefix}-smart-advance-{attempt}", change_advance_frames))
+        latest = capture_informative_screenshot(
+            bridge_request,
+            label=f"{label}-change-{attempt}",
+            max_attempts=visual_max_attempts,
+            advance_frames=visual_advance_frames,
+        )
+        phases.append(_screenshot_phase(f"{phase_prefix}-smart-{attempt}", latest))
+        if _screens_changed(reference, latest):
+            return latest, phases
+    if latest is None:
+        latest = reference
+    return latest, phases
+
+
+def _observe_until_not_boot(
+    bridge_request: BridgeRequest,
+    *,
+    reference: InformativeScreenshotResult,
+    label: str,
+    phase_prefix: str,
+    max_change_attempts: int,
+    change_advance_frames: int,
+    visual_max_attempts: int,
+    visual_advance_frames: int,
+) -> tuple[InformativeScreenshotResult, list[TitleFlowPhase]]:
+    phases: list[TitleFlowPhase] = []
+    latest: InformativeScreenshotResult | None = None
+    for attempt in range(1, max_change_attempts + 1):
+        phases.append(_advance_phase(bridge_request, f"{phase_prefix}-smart-advance-{attempt}", change_advance_frames))
+        latest = capture_informative_screenshot(
+            bridge_request,
+            label=f"{label}-settle-{attempt}",
+            max_attempts=visual_max_attempts,
+            advance_frames=visual_advance_frames,
+        )
+        phases.append(_screenshot_phase(f"{phase_prefix}-smart-{attempt}", latest))
+        changed = _screens_changed(reference, latest)
+        no_longer_boot = _latest_type(latest) not in {"blank-white", "blank-black", "boot-or-logo"}
+        if changed and no_longer_boot:
+            return latest, phases
+    if latest is None:
+        latest = reference
+    return latest, phases
+
+
+def _screens_changed(before: InformativeScreenshotResult, after: InformativeScreenshotResult) -> bool:
+    if not before.ok or not after.ok or not before.attempts or not after.attempts:
+        return False
+    return compare_screenshots(Path(before.attempts[-1].path), Path(after.attempts[-1].path)).changed_enough
+
+
+def _latest_type(result: InformativeScreenshotResult) -> str:
+    if not result.ok or not result.attempts:
+        return "unknown"
+    return classify_screenshot(Path(result.attempts[-1].path)).screen_type
 
 
 def _verify_title_resume(before: InformativeScreenshotResult, final: InformativeScreenshotResult) -> dict[str, Any]:

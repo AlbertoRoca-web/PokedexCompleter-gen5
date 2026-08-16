@@ -92,6 +92,9 @@ class TitleResumeRequest(BaseModel):
     wait_after_continue_frames: int = Field(default=600, ge=1, le=2400)
     visual_max_attempts: int = Field(default=5, ge=1, le=20)
     visual_advance_frames: int = Field(default=30, ge=1, le=600)
+    press_frames: int = Field(default=4, ge=1, le=30)
+    change_max_attempts: int = Field(default=8, ge=1, le=30)
+    change_advance_frames: int = Field(default=90, ge=1, le=1200)
 
 
 class EmulatorMacroFeedbackRequest(BaseModel):
@@ -286,6 +289,14 @@ def emulator_launch(request: EmulatorLaunchRequest | None = None) -> dict[str, A
         raise HTTPException(status_code=500, detail=f"Failed to launch BizHawk: {exc}") from exc
 
 
+@app.get("/api/emulator/info")
+def emulator_info() -> dict[str, Any]:
+    try:
+        return bridge_response("emulator.info", bridge_request("bridge.info"))
+    except BizHawkBridgeError as exc:
+        raise bridge_error("emulator.info.error", exc) from exc
+
+
 @app.get("/api/emulator/state")
 def emulator_state() -> dict[str, Any]:
     try:
@@ -406,6 +417,9 @@ def emulator_macro_resume_save_from_title(request: TitleResumeRequest | None = N
             wait_after_continue_frames=request.wait_after_continue_frames if request else 600,
             visual_max_attempts=request.visual_max_attempts if request else 5,
             visual_advance_frames=request.visual_advance_frames if request else 30,
+            press_frames=request.press_frames if request else 4,
+            change_max_attempts=request.change_max_attempts if request else 8,
+            change_advance_frames=request.change_advance_frames if request else 90,
         )
         payload = result.to_dict()
         status = "accepted" if payload["verification"]["status"] == "candidate-overworld" else "needs-human"

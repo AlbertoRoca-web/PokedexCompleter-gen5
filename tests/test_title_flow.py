@@ -26,11 +26,15 @@ def test_resume_saved_game_from_title_candidate_overworld(monkeypatch, tmp_path:
     def fake_bridge(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         nonlocal screenshots
         calls.append((method, params))
+        if method == "bridge.info":
+            return {"ok": True, "method": method, "approx_framerate": 240.0, "turbo": True}
         if method == "screenshot":
             screenshots += 1
             path = Path(str(params["path"]))  # type: ignore[index]
-            if screenshots < 3:
+            if screenshots == 1:
                 _boot_logo(path)
+            elif screenshots == 2:
+                _continue_menu_like(path)
             else:
                 _overworld_like(path)
             return {"ok": True, "method": method}
@@ -44,19 +48,32 @@ def test_resume_saved_game_from_title_candidate_overworld(monkeypatch, tmp_path:
         wait_after_start_frames=2,
         wait_after_continue_frames=3,
         visual_max_attempts=1,
+        press_frames=5,
+        change_max_attempts=2,
+        change_advance_frames=4,
     )
 
     payload = result.to_dict()
     assert payload["status"] == "candidate-overworld"
     assert payload["verification"]["screen_delta"]["changed_enough"] is True
-    assert ("press", {"button": "Start", "frames": 1}) in calls
-    assert ("press", {"button": "A", "frames": 1}) in calls
+    assert ("press", {"button": "Start", "frames": 5}) in calls
+    assert ("press", {"button": "A", "frames": 5}) in calls
+    assert any(method == "bridge.info" for method, _ in calls)
 
 
 def _boot_logo(path: Path) -> None:
     image = Image.new("RGB", (256, 384), "white")
     draw = ImageDraw.Draw(image)
     draw.text((30, 50), "The Pokemon Company", fill="black")
+    image.save(path)
+
+
+def _continue_menu_like(path: Path) -> None:
+    image = Image.new("RGB", (256, 384), "white")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((80, 80, 230, 260), outline="black", width=3)
+    draw.rectangle((100, 120, 210, 145), fill="black")
+    draw.rectangle((100, 170, 210, 195), fill="black")
     image.save(path)
 
 

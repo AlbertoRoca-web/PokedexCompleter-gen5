@@ -43,6 +43,31 @@ local function extract_number(payload, key, default)
     return tonumber(payload:match(pattern)) or default
 end
 
+local function bridge_info()
+    local frame_count = 0
+    local approx_framerate = 0
+    local turbo = false
+    pcall(function()
+        frame_count = emu.framecount()
+    end)
+    pcall(function()
+        approx_framerate = client.get_approx_framerate()
+    end)
+    pcall(function()
+        turbo = client.isturbo()
+    end)
+    return json_object({
+        ok = true,
+        method = "bridge.info",
+        bridge_version = BRIDGE_VERSION,
+        emulator = "BizHawk",
+        core = "melonDS",
+        frame_count = frame_count,
+        approx_framerate = approx_framerate,
+        turbo = turbo
+    })
+end
+
 local function current_state_stub()
     return json_object({
         bridge_version = BRIDGE_VERSION,
@@ -159,7 +184,9 @@ local function handle_request(payload)
     local method = extract_string(payload, "method", "")
     local request_id = extract_string(payload, "id", "")
     local response
-    if method == "get_state" then
+    if method == "bridge.info" then
+        response = bridge_info()
+    elseif method == "get_state" then
         response = current_state_stub()
     elseif method == "press" then
         local button = extract_string(payload, "button", "A")
