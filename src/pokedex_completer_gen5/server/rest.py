@@ -90,7 +90,7 @@ class EmulatorMemoryReadRequest(BaseModel):
 
 
 class EmulatorMemoryReadBytesRequest(EmulatorMemoryReadRequest):
-    length: int = Field(default=16, ge=1, le=4096)
+    length: int = Field(default=16, ge=1, le=65536)
 
 
 class EmulatorMemoryDiffAfterPressRequest(EmulatorMemoryReadRequest):

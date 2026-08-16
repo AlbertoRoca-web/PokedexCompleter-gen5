@@ -91,7 +91,7 @@ def _read_bytes(client: httpx.Client, *, domain: str, start: int, length: int) -
     values: list[int] = []
     offset = 0
     while offset < length:
-        current_length = min(4096, length - offset)
+        current_length = min(65536, length - offset)
         response = client.post(
             "/api/emulator/memory/read-bytes",
             json={"domain": domain, "address": start + offset, "length": current_length},

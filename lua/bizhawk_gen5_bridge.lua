@@ -199,8 +199,8 @@ local function read_memory_bytes(domain, address, length)
     if length < 1 then
         length = 1
     end
-    if length > 4096 then
-        length = 4096
+    if length > 65536 then
+        length = 65536
     end
     local ok, result = pcall(function()
         return with_memory_domain(domain, function()
