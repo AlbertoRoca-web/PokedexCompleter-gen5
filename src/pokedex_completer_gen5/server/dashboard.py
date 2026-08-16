@@ -111,6 +111,10 @@ DASHBOARD_HTML = """<!doctype html>
       <button type="button" onclick="checkpointSave()">Save CP</button>
       <button type="button" onclick="checkpointLoad()">Load CP</button>
       <button type="button" onclick="emulatorScreenshot()">Screenshot</button>
+      <button type="button" onclick="screenshotAnalysisFetch()">Screenshot Analysis</button>
+      <button type="button" onclick="artifactListFetch()">Artifacts</button>
+      <button type="button" onclick="memoryDomainsFetch()">Memory Domains</button>
+      <button type="button" onclick="romIdentityFetch()">ROM Identity</button>
     </div>
     <h3>Macros</h3>
     <div class="button-row">
@@ -125,6 +129,12 @@ DASHBOARD_HTML = """<!doctype html>
     </div>
     <div id="emulatorStatus" class="status-panel status-warn">
       Status: not checked yet. Click Launch or Diagnose.
+    </div>
+    <div class="status-panel">
+      <strong>Latest screenshot</strong><br>
+      <img id="latestScreenshot" alt="Latest emulator screenshot"
+           style="max-width:100%; image-rendering: pixelated; display:none;
+                  border:1px solid #334155; border-radius:8px; margin-top:8px;" />
     </div>
     <pre id="emulatorOutput">Not connected.</pre>
   </section>
@@ -338,6 +348,25 @@ async function macroFeedback(outcome) {
 
 async function emulatorScreenshot() {
   await apiToPre('/api/emulator/screenshot', { method: 'GET' }, 'emulatorOutput');
+  const img = document.getElementById('latestScreenshot');
+  img.src = '/api/emulator/screenshot/latest.png?cacheBust=' + Date.now();
+  img.style.display = 'block';
+}
+
+async function screenshotAnalysisFetch() {
+  await apiToPre('/api/emulator/screenshot/latest-analysis', { method: 'GET' }, 'emulatorOutput');
+}
+
+async function artifactListFetch() {
+  await apiToPre('/api/emulator/artifacts', { method: 'GET' }, 'emulatorOutput');
+}
+
+async function memoryDomainsFetch() {
+  await apiToPre('/api/emulator/memory/domains', { method: 'GET' }, 'emulatorOutput');
+}
+
+async function romIdentityFetch() {
+  await apiToPre('/api/emulator/rom', { method: 'GET' }, 'emulatorOutput');
 }
 
 async function telemetryFetch() {

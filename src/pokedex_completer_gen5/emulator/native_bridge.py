@@ -128,6 +128,9 @@ class NativeBridgeServer:
             if not line:
                 continue
             self._handle_message(line)
+        if _looks_like_complete_json_message(remainder):
+            self._handle_message(remainder.strip())
+            return ""
         return remainder
 
     def _handle_message(self, message: str) -> None:
@@ -145,6 +148,17 @@ class NativeBridgeServer:
         if isinstance(request_id, str):
             with self._lock:
                 self._results[request_id] = decoded
+
+
+def _looks_like_complete_json_message(message: str) -> bool:
+    payload = _strip_bizhawk_frame_prefix(message.strip())
+    if not payload.startswith("{") or not payload.endswith("}"):
+        return False
+    try:
+        json.loads(payload)
+    except json.JSONDecodeError:
+        return False
+    return True
 
 
 def _strip_bizhawk_frame_prefix(message: str) -> str:

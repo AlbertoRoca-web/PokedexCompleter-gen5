@@ -7,7 +7,15 @@ from pokedex_completer_gen5.ai.router import PlanningTask, choose_model
 from pokedex_completer_gen5.domain.game_state import semantic_state_from_bridge
 from pokedex_completer_gen5.events import event_bus
 from pokedex_completer_gen5.persistence.database import init_database, reset_database_engine_for_tests
-from pokedex_completer_gen5.persistence.store import macro_reliability, persist_macro_feedback
+from pokedex_completer_gen5.persistence.store import (
+    get_artifact,
+    latest_artifact_path,
+    list_artifacts,
+    macro_reliability,
+    persist_artifact,
+    persist_macro_attempt,
+    persist_macro_feedback,
+)
 from pokedex_completer_gen5.runtime import ensure_runtime_dirs
 from pokedex_completer_gen5.settings import AISettings, get_settings
 from pokedex_completer_gen5.trajectory import read_jsonl_events
@@ -44,6 +52,15 @@ def test_sqlite_macro_feedback_reliability(monkeypatch, tmp_path: Path) -> None:
     configure_runtime(monkeypatch, tmp_path)
     init_database()
 
+    persist_macro_attempt(
+        {
+            "id": "macro-1",
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "macro_name": "open_menu",
+            "status": "executed-needs-human-confirmation",
+            "expected_result": "menu",
+        }
+    )
     persist_macro_feedback(
         {
             "id": "feedback-1",
@@ -55,7 +72,22 @@ def test_sqlite_macro_feedback_reliability(monkeypatch, tmp_path: Path) -> None:
         }
     )
 
-    assert macro_reliability()[0]["success_rate"] == 1.0
+    reliability = macro_reliability()
+    assert reliability[0]["macro_name"] == "open_menu"
+    assert reliability[0]["success_rate"] == 1.0
+
+
+def test_artifact_store_round_trip(monkeypatch, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    configure_runtime(monkeypatch, tmp_path)
+    init_database()
+    screenshot = tmp_path / "screen.png"
+    screenshot.write_bytes(b"png-ish")
+
+    metadata = persist_artifact("screenshot", screenshot, {"source": "test"})
+
+    assert get_artifact(str(metadata["id"])) is not None
+    assert list_artifacts("screenshot", limit=1)[0]["path"] == str(screenshot)
+    assert latest_artifact_path("screenshot") == screenshot
 
 
 def test_semantic_state_is_conservative() -> None:

@@ -20,9 +20,9 @@ def timestamp_prefix() -> str:
 
 def screenshot_path(name: str = "screen") -> Path:
     paths = ensure_runtime_dirs()
-    return paths.screenshots / f"{timestamp_prefix()}-{safe_artifact_name(name)}.png"
+    return (paths.screenshots / f"{timestamp_prefix()}-{safe_artifact_name(name)}.png").resolve()
 
 
 def checkpoint_path(name: str) -> Path:
     paths = ensure_runtime_dirs()
-    return paths.checkpoints / f"{timestamp_prefix()}-{safe_artifact_name(name)}.State"
+    return (paths.checkpoints / f"{timestamp_prefix()}-{safe_artifact_name(name)}.State").resolve()

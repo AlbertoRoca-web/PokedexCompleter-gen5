@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 import httpx
 from fastapi import FastAPI, HTTPException, Response, WebSocket
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from pokedex_completer_gen5 import __version__
@@ -22,9 +22,18 @@ from pokedex_completer_gen5.emulator.launcher import bizhawk_launch_config_from_
 from pokedex_completer_gen5.emulator.macro_feedback import recent_macro_feedback, record_macro_feedback
 from pokedex_completer_gen5.emulator.macros import run_close_menu_macro, run_open_menu_macro
 from pokedex_completer_gen5.emulator.native_bridge import NativeBridgeError, native_bridge, wait_for_native_bridge
+from pokedex_completer_gen5.emulator.rom import identify_rom
+from pokedex_completer_gen5.emulator.vision import analyze_screenshot
 from pokedex_completer_gen5.integrations.env import load_environment
 from pokedex_completer_gen5.integrations.provider_health import provider_health_payload
-from pokedex_completer_gen5.persistence.store import macro_reliability, persist_artifact, persist_macro_attempt
+from pokedex_completer_gen5.persistence.store import (
+    get_artifact,
+    latest_artifact_path,
+    list_artifacts,
+    macro_reliability,
+    persist_artifact,
+    persist_macro_attempt,
+)
 from pokedex_completer_gen5.saveio.physical_report import build_save_payload, build_save_report
 from pokedex_completer_gen5.server.dashboard import DASHBOARD_HTML
 from pokedex_completer_gen5.server.telemetry import (
@@ -73,7 +82,11 @@ class EmulatorMacroFeedbackRequest(BaseModel):
 
 
 class EmulatorCheckpointRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=80)
+    name: str = Field(min_length=1, max_length=260)
+
+
+class EmulatorCheckpointArtifactRequest(BaseModel):
+    artifact_id: str = Field(min_length=1)
 
 
 class UiEventRequest(BaseModel):
@@ -215,6 +228,11 @@ def add_native_diagnosis(payload: dict[str, Any]) -> dict[str, Any]:
 @app.get("/api/emulator/controls")
 def emulator_controls() -> dict[str, Any]:
     return controls_payload()
+
+
+@app.get("/api/emulator/rom")
+def emulator_rom_identity() -> dict[str, Any]:
+    return identify_rom(bizhawk_launch_config_from_env().rom_path)
 
 
 @app.get("/api/emulator/diagnostics")
@@ -369,7 +387,7 @@ def emulator_resume() -> dict[str, Any]:
 def emulator_save_checkpoint(request: EmulatorCheckpointRequest) -> dict[str, Any]:
     try:
         path = checkpoint_path(request.name)
-        payload = bridge_request("save_checkpoint", {"name": request.name, "path": str(path)})
+        payload = bridge_request("save_checkpoint", {"name": request.name, "path": path.as_posix()})
         payload["artifact_path"] = str(path)
         payload["artifact"] = persist_artifact("checkpoint", path, payload)
         return bridge_response("emulator.save_checkpoint", payload)
@@ -381,23 +399,72 @@ def emulator_save_checkpoint(request: EmulatorCheckpointRequest) -> dict[str, An
 def emulator_load_checkpoint(request: EmulatorCheckpointRequest) -> dict[str, Any]:
     try:
         path = Path(request.name)
-        payload = bridge_request("load_checkpoint", {"name": request.name, "path": str(path)})
+        payload = bridge_request("load_checkpoint", {"name": request.name, "path": path.as_posix()})
         payload["artifact_path"] = str(path)
         return bridge_response("emulator.load_checkpoint", payload)
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.load_checkpoint.error", exc) from exc
 
 
+@app.post("/api/emulator/checkpoint/load-artifact")
+def emulator_load_checkpoint_artifact(request: EmulatorCheckpointArtifactRequest) -> dict[str, Any]:
+    artifact = get_artifact(request.artifact_id)
+    if artifact is None or artifact["artifact_type"] != "checkpoint":
+        raise HTTPException(status_code=404, detail="Checkpoint artifact not found")
+    try:
+        path = Path(str(artifact["path"]))
+        payload = bridge_request("load_checkpoint", {"name": request.artifact_id, "path": path.as_posix()})
+        payload["artifact"] = artifact
+        return bridge_response("emulator.load_checkpoint", payload)
+    except BizHawkBridgeError as exc:
+        raise bridge_error("emulator.load_checkpoint.error", exc) from exc
+
+
+@app.get("/api/emulator/artifacts")
+def emulator_artifacts(artifact_type: str | None = None, limit: int = 50) -> dict[str, Any]:
+    return {"artifacts": list_artifacts(artifact_type=artifact_type, limit=limit)}
+
+
 @app.get("/api/emulator/screenshot")
 def emulator_screenshot() -> dict[str, Any]:
     try:
         path = screenshot_path()
-        payload = bridge_request("screenshot", {"path": str(path)})
+        payload = bridge_request("screenshot", {"path": path.as_posix()})
         payload["artifact_path"] = str(path)
         payload["artifact"] = persist_artifact("screenshot", path, payload)
         return bridge_response("emulator.screenshot", payload)
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.screenshot.error", exc) from exc
+
+
+@app.get("/api/emulator/screenshot/latest.png")
+def emulator_latest_screenshot_image() -> FileResponse:
+    path = latest_artifact_path("screenshot")
+    if path is None or not path.exists():
+        raise HTTPException(status_code=404, detail="No screenshot artifact exists yet")
+    return FileResponse(path, media_type="image/png", filename=path.name)
+
+
+@app.get("/api/emulator/screenshot/latest-analysis")
+def emulator_latest_screenshot_analysis() -> dict[str, Any]:
+    path = latest_artifact_path("screenshot")
+    if path is None or not path.exists():
+        raise HTTPException(status_code=404, detail="No screenshot artifact exists yet")
+    try:
+        return analyze_screenshot(path)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+
+
+@app.get("/api/emulator/memory/domains")
+def emulator_memory_domains() -> dict[str, Any]:
+    try:
+        payload = bridge_request("memory.list_domains")
+        domains_csv = str(payload.get("domains_csv", ""))
+        payload["domains"] = [item for item in domains_csv.split(",") if item]
+        return bridge_response("emulator.memory.domains", payload)
+    except BizHawkBridgeError as exc:
+        raise bridge_error("emulator.memory.domains.error", exc) from exc
 
 
 @app.get("/api/voice/config")

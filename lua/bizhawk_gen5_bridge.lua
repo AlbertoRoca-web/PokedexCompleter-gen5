@@ -134,6 +134,27 @@ local function screenshot(path)
     return json_object({ ok = result == true, method = "screenshot", path = path })
 end
 
+local function list_memory_domains()
+    local ok, result = pcall(function()
+        local domains = memory.getmemorydomainlist()
+        local names = {}
+        for _, domain in ipairs(domains) do
+            table.insert(names, domain)
+        end
+        return table.concat(names, ",")
+    end)
+    if not ok then
+        return json_object({ ok = false, method = "memory.list_domains", error = tostring(result) })
+    end
+    local current = ""
+    local size = 0
+    pcall(function()
+        current = memory.getcurrentmemorydomain()
+        size = memory.getcurrentmemorydomainsize()
+    end)
+    return json_object({ ok = true, method = "memory.list_domains", domains_csv = result, current = current, current_size = size })
+end
+
 local function handle_request(payload)
     local method = extract_string(payload, "method", "")
     local request_id = extract_string(payload, "id", "")
@@ -161,6 +182,8 @@ local function handle_request(payload)
         response = load_checkpoint(extract_string(payload, "path", ""))
     elseif method == "screenshot" then
         response = screenshot(extract_string(payload, "path", ""))
+    elseif method == "memory.list_domains" then
+        response = list_memory_domains()
     else
         response = json_object({ ok = false, error = "unknown method", method = method })
     end
