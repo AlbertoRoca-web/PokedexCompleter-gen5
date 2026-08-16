@@ -80,14 +80,13 @@ def run_resume_saved_game_from_title(
     before_type = _latest_type(before)
     after_start = before
     if before_type != "menu-like":
-        phases.append(_press_phase(bridge_request, "press-start-on-title", "start", press_frames=press_frames))
-        phases.append(_advance_phase(bridge_request, "minimum-wait-after-start", wait_after_start_frames))
-        after_start, after_start_phases = _observe_until_screen_type(
+        phases.append(_advance_phase(bridge_request, "minimum-wait-before-title-start-loop", wait_after_start_frames))
+        after_start, after_start_phases = _press_until_continue_menu(
             bridge_request,
             reference=before,
             label=f"title-flow-{flow_id}-after-start",
-            phase_prefix="after-start-menu-ready",
-            accepted_types={"menu-like"},
+            phase_prefix="after-start-continue-ready",
+            press_frames=max(press_frames, 30),
             max_change_attempts=change_max_attempts,
             change_advance_frames=change_advance_frames,
             visual_max_attempts=visual_max_attempts,
@@ -191,6 +190,37 @@ def _screenshot_phase(name: str, result: InformativeScreenshotResult) -> TitleFl
         result={"ok": result.ok, "reason": result.reason},
         screenshot=result.to_dict(),
     )
+
+
+def _press_until_continue_menu(
+    bridge_request: BridgeRequest,
+    *,
+    reference: InformativeScreenshotResult,
+    label: str,
+    phase_prefix: str,
+    press_frames: int,
+    max_change_attempts: int,
+    change_advance_frames: int,
+    visual_max_attempts: int,
+    visual_advance_frames: int,
+) -> tuple[InformativeScreenshotResult, list[TitleFlowPhase]]:
+    phases: list[TitleFlowPhase] = []
+    latest: InformativeScreenshotResult | None = None
+    for attempt in range(1, max_change_attempts + 1):
+        phases.append(
+            _press_phase(bridge_request, f"{phase_prefix}-start-press-{attempt}", "start", press_frames=press_frames)
+        )
+        phases.append(_advance_phase(bridge_request, f"{phase_prefix}-advance-{attempt}", change_advance_frames))
+        latest = capture_informative_screenshot(
+            bridge_request,
+            label=f"{label}-continue-{attempt}",
+            max_attempts=visual_max_attempts,
+            advance_frames=visual_advance_frames,
+        )
+        phases.append(_screenshot_phase(f"{phase_prefix}-{attempt}", latest))
+        if _screens_changed(reference, latest) and _latest_path_matches(latest, _looks_like_continue_menu_frame):
+            return latest, phases
+    return latest or reference, phases
 
 
 def _observe_until_screen_type(
@@ -371,6 +401,23 @@ def _verify_title_resume(
         "before_classification": before_classification.to_dict(),
         "final_classification": final_classification.to_dict(),
     }
+
+
+def _latest_path_matches(result: InformativeScreenshotResult, predicate: Callable[[Path], bool]) -> bool:
+    if not result.ok or not result.attempts:
+        return False
+    return predicate(Path(result.attempts[-1].path))
+
+
+def _looks_like_continue_menu_frame(path: Path) -> bool:
+    with Image.open(path) as image:
+        gray = image.convert("L")
+        width, height = gray.size
+        top = gray.crop((0, 0, width, height // 2))
+        bottom = gray.crop((0, height // 2, width, height))
+        top_mean = float(ImageStat.Stat(top).mean[0])
+        bottom_mean = float(ImageStat.Stat(bottom).mean[0])
+    return top_mean >= 120.0 and bottom_mean >= 150.0
 
 
 def _looks_like_gen5_overworld_frame(path: Path) -> bool:

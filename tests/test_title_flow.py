@@ -66,7 +66,7 @@ def test_resume_saved_game_from_title_candidate_overworld(monkeypatch, tmp_path:
     assert payload["verification"]["screen_delta"]["changed_enough"] is True
     assert payload["verification"]["ram_verified"] is True
     assert payload["verification"]["visual_known_overworld"] is True
-    assert ("press", {"button": "Start", "frames": 5}) in calls
+    assert ("press", {"button": "Start", "frames": 30}) in calls
     assert ("press", {"button": "A", "frames": 5}) in calls
     assert ("press", {"button": "Down", "frames": 5}) in calls
     assert any(method == "bridge.info" for method, _ in calls)
