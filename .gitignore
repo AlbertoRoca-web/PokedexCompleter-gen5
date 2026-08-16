@@ -23,6 +23,7 @@ checkpoints/
 # Saves / ROMs / copyrighted game files
 *.sav
 *.dsv
+*.SaveRAM
 *.duc
 *.dst
 *.nds
