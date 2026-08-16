@@ -3,8 +3,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
+
+from PIL import Image, ImageStat
 
 from pokedex_completer_gen5.emulator.controls import normalize_button_or_action
 from pokedex_completer_gen5.emulator.screen_classifier import classify_screenshot, compare_screenshots
@@ -260,23 +262,45 @@ def _verify_title_resume(
     before_classification = classify_screenshot(before_path)
     final_classification = classify_screenshot(final_path)
     final_type = final_classification.screen_type
-    semantic_mode = semantic.get("mode")
     semantic_menu_open = semantic.get("state", {}).get("menu_open") if isinstance(semantic.get("state"), dict) else None
-    ram_verified = semantic_mode == "overworld" and semantic_menu_open is False
-    visual_accepted = delta.changed_enough and final_type not in {"blank-white", "blank-black", "boot-or-logo"}
+    ram_verified = semantic_menu_open is False
+    visual_known_overworld = _looks_like_gen5_overworld_frame(final_path)
+    visual_accepted = (
+        delta.changed_enough
+        and final_type not in {"blank-white", "blank-black", "boot-or-logo"}
+        and visual_known_overworld
+    )
     accepted = visual_accepted and ram_verified
     return {
         "mode": "title-resume-visual-v1",
         "status": "candidate-overworld" if accepted else "needs-human",
         "reason": (
-            "final screen changed and RAM menu_state verified known closed overworld"
+            "final screen visually matches overworld and RAM menu_state is closed"
             if accepted
             else "final screen/RAM did not prove save loaded to known overworld"
         ),
         "screen_delta": delta.to_dict(),
         "visual_accepted": visual_accepted,
         "ram_verified": ram_verified,
+        "visual_known_overworld": visual_known_overworld,
         "semantic_state": semantic,
         "before_classification": before_classification.to_dict(),
         "final_classification": final_classification.to_dict(),
     }
+
+
+def _looks_like_gen5_overworld_frame(path: Path) -> bool:
+    with Image.open(path) as image:
+        gray = image.convert("L")
+        width, height = gray.size
+        top = gray.crop((0, 0, width, height // 2))
+        bottom = gray.crop((0, height // 2, width, height))
+        top_mean = float(ImageStat.Stat(top).mean[0])
+        bottom_mean = float(ImageStat.Stat(bottom).mean[0])
+        bottom_dark_ratio = _dark_ratio(bottom, threshold=70)
+    return top_mean >= 85.0 and 8.0 <= bottom_mean <= 80.0 and bottom_dark_ratio >= 0.70
+
+
+def _dark_ratio(image: Image.Image, *, threshold: int) -> float:
+    mask = image.point(lambda value: 255 if cast(int, value) < threshold else 0)
+    return float(ImageStat.Stat(mask).mean[0] / 255)

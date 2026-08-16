@@ -5,7 +5,10 @@ from typing import Any
 
 from PIL import Image, ImageDraw
 
-from pokedex_completer_gen5.emulator.title_flow import run_resume_saved_game_from_title
+from pokedex_completer_gen5.emulator.title_flow import (
+    _looks_like_gen5_overworld_frame,
+    run_resume_saved_game_from_title,
+)
 from pokedex_completer_gen5.persistence.database import init_database, reset_database_engine_for_tests
 from pokedex_completer_gen5.settings import get_settings
 
@@ -62,10 +65,22 @@ def test_resume_saved_game_from_title_candidate_overworld(monkeypatch, tmp_path:
     assert payload["status"] == "candidate-overworld"
     assert payload["verification"]["screen_delta"]["changed_enough"] is True
     assert payload["verification"]["ram_verified"] is True
+    assert payload["verification"]["visual_known_overworld"] is True
     assert ("press", {"button": "Start", "frames": 5}) in calls
     assert ("press", {"button": "A", "frames": 5}) in calls
     assert ("press", {"button": "Down", "frames": 5}) in calls
     assert any(method == "bridge.info" for method, _ in calls)
+
+
+def test_overworld_frame_guard_rejects_dark_cinematic(tmp_path: Path) -> None:
+    path = tmp_path / "cinematic.png"
+    image = Image.new("RGB", (256, 384), "black")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 256, 192), fill=(70, 50, 30))
+    draw.rectangle((120, 30, 220, 90), fill=(200, 170, 100))
+    image.save(path)
+
+    assert _looks_like_gen5_overworld_frame(path) is False
 
 
 def _boot_logo(path: Path) -> None:
@@ -89,5 +104,7 @@ def _overworld_like(path: Path) -> None:
     draw = ImageDraw.Draw(image)
     draw.rectangle((20, 20, 236, 180), fill=(220, 210, 180))
     draw.rectangle((100, 170, 140, 210), fill=(30, 60, 120))
-    draw.rectangle((0, 250, 256, 384), fill=(180, 120, 90))
+    draw.rectangle((0, 192, 256, 384), fill=(5, 20, 20))
+    for x in range(0, 256, 32):
+        draw.line((x, 192, x, 384), fill=(20, 60, 55))
     image.save(path)

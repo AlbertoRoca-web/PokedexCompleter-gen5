@@ -212,8 +212,6 @@ def _interpret_state(profile: MemoryProfile, raw_values: dict[str, Any]) -> dict
         mode = "menu"
     elif transitioning is True or _legacy_nonzero_state(profile, "transition_state", transitioning, transition_state):
         mode = "transition"
-    elif menu_open is False and battle_active is not True and transitioning is not True:
-        mode = "overworld"
     facing_value = _field_value(raw_values, "facing")
     return {
         "game_profile": profile.profile_id,
