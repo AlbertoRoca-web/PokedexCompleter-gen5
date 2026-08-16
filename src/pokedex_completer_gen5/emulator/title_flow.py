@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from pokedex_completer_gen5.emulator.controls import normalize_button_or_action
 from pokedex_completer_gen5.emulator.screen_classifier import classify_screenshot, compare_screenshots
+from pokedex_completer_gen5.emulator.semantic_state import build_semantic_state
 from pokedex_completer_gen5.emulator.visual_wait import InformativeScreenshotResult, capture_informative_screenshot
 
 BridgeRequest = Callable[[str, dict[str, Any] | None], dict[str, Any]]
@@ -52,6 +53,8 @@ def run_resume_saved_game_from_title(
     initial_wait_frames: int = 60,
     wait_after_start_frames: int = 90,
     wait_after_continue_frames: int = 600,
+    wait_after_cgear_prompt_frames: int = 180,
+    wait_after_cgear_confirm_frames: int = 600,
     visual_max_attempts: int = 5,
     visual_advance_frames: int = 30,
     press_frames: int = 4,
@@ -87,6 +90,11 @@ def run_resume_saved_game_from_title(
 
     phases.append(_press_phase(bridge_request, "confirm-continue", "confirm", press_frames=press_frames))
     phases.append(_advance_phase(bridge_request, "minimum-wait-after-continue", wait_after_continue_frames))
+    phases.append(_press_phase(bridge_request, "cgear-prompt-select-no", "down", press_frames=press_frames))
+    phases.append(_press_phase(bridge_request, "cgear-prompt-confirm-no", "confirm", press_frames=press_frames))
+    phases.append(_advance_phase(bridge_request, "minimum-wait-after-cgear-no", wait_after_cgear_prompt_frames))
+    phases.append(_press_phase(bridge_request, "cgear-restricted-confirm-yes", "confirm", press_frames=press_frames))
+    phases.append(_advance_phase(bridge_request, "minimum-wait-after-cgear-confirm", wait_after_cgear_confirm_frames))
     final, final_phases = _observe_until_not_boot(
         bridge_request,
         reference=after_start,
@@ -99,8 +107,10 @@ def run_resume_saved_game_from_title(
     )
     phases.extend(final_phases)
     phases.append(_info_phase(bridge_request, "bridge-info-end"))
+    semantic = _semantic_phase(bridge_request)
+    phases.append(semantic)
 
-    verification = _verify_title_resume(before, final)
+    verification = _verify_title_resume(before, final, semantic.result)
     return TitleResumeFlowResult(
         id=flow_id,
         status=str(verification["status"]),
@@ -134,6 +144,18 @@ def _info_phase(bridge_request: BridgeRequest, name: str) -> TitleFlowPhase:
     except Exception as exc:
         result = {"ok": False, "error": str(exc)}
     return TitleFlowPhase(name=name, action={"method": "bridge.info"}, result=result)
+
+
+def _semantic_phase(bridge_request: BridgeRequest) -> TitleFlowPhase:
+    try:
+        result = build_semantic_state(bridge_request).to_dict()
+    except Exception as exc:
+        result = {"ok": False, "error": str(exc)}
+    return TitleFlowPhase(
+        name="semantic-state-final",
+        action={"method": "build_semantic_state"},
+        result=result,
+    )
 
 
 def _screenshot_phase(name: str, result: InformativeScreenshotResult) -> TitleFlowPhase:
@@ -217,7 +239,11 @@ def _latest_type(result: InformativeScreenshotResult) -> str:
     return classify_screenshot(Path(result.attempts[-1].path)).screen_type
 
 
-def _verify_title_resume(before: InformativeScreenshotResult, final: InformativeScreenshotResult) -> dict[str, Any]:
+def _verify_title_resume(
+    before: InformativeScreenshotResult,
+    final: InformativeScreenshotResult,
+    semantic: dict[str, Any],
+) -> dict[str, Any]:
     if not before.ok or not final.ok or not before.attempts or not final.attempts:
         return {
             "mode": "title-resume-visual-v1",
@@ -225,6 +251,7 @@ def _verify_title_resume(before: InformativeScreenshotResult, final: Informative
             "reason": "before or final screenshot was not informative",
             "before_ok": before.ok,
             "final_ok": final.ok,
+            "semantic_state": semantic,
         }
 
     before_path = Path(before.attempts[-1].path)
@@ -233,16 +260,23 @@ def _verify_title_resume(before: InformativeScreenshotResult, final: Informative
     before_classification = classify_screenshot(before_path)
     final_classification = classify_screenshot(final_path)
     final_type = final_classification.screen_type
-    accepted = delta.changed_enough and final_type not in {"blank-white", "blank-black", "boot-or-logo"}
+    semantic_mode = semantic.get("mode")
+    semantic_menu_open = semantic.get("state", {}).get("menu_open") if isinstance(semantic.get("state"), dict) else None
+    ram_verified = semantic_mode == "overworld" and semantic_menu_open is False
+    visual_accepted = delta.changed_enough and final_type not in {"blank-white", "blank-black", "boot-or-logo"}
+    accepted = visual_accepted and ram_verified
     return {
         "mode": "title-resume-visual-v1",
         "status": "candidate-overworld" if accepted else "needs-human",
         "reason": (
-            "final screen changed and is no longer blank/boot"
+            "final screen changed and RAM menu_state verified known closed overworld"
             if accepted
-            else "final screen did not prove save loaded"
+            else "final screen/RAM did not prove save loaded to known overworld"
         ),
         "screen_delta": delta.to_dict(),
+        "visual_accepted": visual_accepted,
+        "ram_verified": ram_verified,
+        "semantic_state": semantic,
         "before_classification": before_classification.to_dict(),
         "final_classification": final_classification.to_dict(),
     }

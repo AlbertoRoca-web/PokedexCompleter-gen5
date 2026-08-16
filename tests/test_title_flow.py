@@ -38,6 +38,9 @@ def test_resume_saved_game_from_title_candidate_overworld(monkeypatch, tmp_path:
             else:
                 _overworld_like(path)
             return {"ok": True, "method": method}
+        if method == "memory.read_bytes":
+            assert params == {"domain": "ARM9 System Bus", "address": 0x020A84BF, "length": 1}
+            return {"ok": True, "method": method, "values_csv": "6", "hex": "06"}
         if method in {"press", "frame_advance"}:
             return {"ok": True, "method": method}
         raise AssertionError(method)
@@ -47,6 +50,8 @@ def test_resume_saved_game_from_title_candidate_overworld(monkeypatch, tmp_path:
         initial_wait_frames=1,
         wait_after_start_frames=2,
         wait_after_continue_frames=3,
+        wait_after_cgear_prompt_frames=3,
+        wait_after_cgear_confirm_frames=3,
         visual_max_attempts=1,
         press_frames=5,
         change_max_attempts=2,
@@ -56,8 +61,10 @@ def test_resume_saved_game_from_title_candidate_overworld(monkeypatch, tmp_path:
     payload = result.to_dict()
     assert payload["status"] == "candidate-overworld"
     assert payload["verification"]["screen_delta"]["changed_enough"] is True
+    assert payload["verification"]["ram_verified"] is True
     assert ("press", {"button": "Start", "frames": 5}) in calls
     assert ("press", {"button": "A", "frames": 5}) in calls
+    assert ("press", {"button": "Down", "frames": 5}) in calls
     assert any(method == "bridge.info" for method, _ in calls)
 
 

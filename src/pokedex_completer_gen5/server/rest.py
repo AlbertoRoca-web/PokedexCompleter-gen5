@@ -121,6 +121,8 @@ class TitleResumeRequest(BaseModel):
         ge=1,
         le=2400,
     )
+    wait_after_cgear_prompt_frames: int = Field(default=180, ge=1, le=2400)
+    wait_after_cgear_confirm_frames: int = Field(default=600, ge=1, le=3000)
     visual_max_attempts: int = Field(default=get_settings().timing.title_visual_max_attempts, ge=1, le=20)
     visual_advance_frames: int = Field(default=get_settings().timing.title_visual_advance_frames, ge=1, le=600)
     press_frames: int = Field(default=get_settings().timing.title_press_frames, ge=1, le=30)
@@ -478,6 +480,8 @@ def emulator_macro_resume_save_from_title(request: TitleResumeRequest | None = N
             initial_wait_frames=request.initial_wait_frames if request else 60,
             wait_after_start_frames=request.wait_after_start_frames if request else 90,
             wait_after_continue_frames=request.wait_after_continue_frames if request else 600,
+            wait_after_cgear_prompt_frames=request.wait_after_cgear_prompt_frames if request else 180,
+            wait_after_cgear_confirm_frames=request.wait_after_cgear_confirm_frames if request else 600,
             visual_max_attempts=request.visual_max_attempts if request else 5,
             visual_advance_frames=request.visual_advance_frames if request else 30,
             press_frames=request.press_frames if request else 4,
