@@ -25,6 +25,7 @@ from pokedex_completer_gen5.emulator.macros import run_close_menu_macro, run_ope
 from pokedex_completer_gen5.emulator.native_bridge import NativeBridgeError, native_bridge, wait_for_native_bridge
 from pokedex_completer_gen5.emulator.rom import identify_rom
 from pokedex_completer_gen5.emulator.screen_classifier import classify_screenshot
+from pokedex_completer_gen5.emulator.title_flow import run_resume_saved_game_from_title
 from pokedex_completer_gen5.emulator.vision import analyze_screenshot
 from pokedex_completer_gen5.emulator.visual_wait import capture_informative_screenshot
 from pokedex_completer_gen5.integrations.env import load_environment
@@ -83,6 +84,14 @@ class InformativeScreenshotRequest(BaseModel):
     label: str = Field(default="manual", min_length=1, max_length=80)
     max_attempts: int = Field(default=5, ge=1, le=20)
     advance_frames: int = Field(default=30, ge=1, le=600)
+
+
+class TitleResumeRequest(BaseModel):
+    initial_wait_frames: int = Field(default=60, ge=0, le=1200)
+    wait_after_start_frames: int = Field(default=90, ge=1, le=1200)
+    wait_after_continue_frames: int = Field(default=600, ge=1, le=2400)
+    visual_max_attempts: int = Field(default=5, ge=1, le=20)
+    visual_advance_frames: int = Field(default=30, ge=1, le=600)
 
 
 class EmulatorMacroFeedbackRequest(BaseModel):
@@ -385,6 +394,36 @@ def emulator_macro_close_menu(request: EmulatorMacroRequest | None = None) -> di
         return payload
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.macro.close_menu.error", exc) from exc
+
+
+@app.post("/api/emulator/macro/resume-save-from-title")
+def emulator_macro_resume_save_from_title(request: TitleResumeRequest | None = None) -> dict[str, Any]:
+    try:
+        result = run_resume_saved_game_from_title(
+            bridge_request,
+            initial_wait_frames=request.initial_wait_frames if request else 60,
+            wait_after_start_frames=request.wait_after_start_frames if request else 90,
+            wait_after_continue_frames=request.wait_after_continue_frames if request else 600,
+            visual_max_attempts=request.visual_max_attempts if request else 5,
+            visual_advance_frames=request.visual_advance_frames if request else 30,
+        )
+        payload = result.to_dict()
+        status = "accepted" if payload["verification"]["status"] == "candidate-overworld" else "needs-human"
+        validator_event = record_validator_event(
+            "macro_visual_verification",
+            f"resume_saved_game_from_title visual check: {payload['verification']['status']}",
+            payload={
+                "macro_run_id": payload["id"],
+                "macro_name": payload["macro_name"],
+                "verification": payload["verification"],
+            },
+            status=status,  # type: ignore[arg-type]
+        )
+        payload["validator_event"] = validator_event.to_dict()
+        record_telemetry_event("emulator.macro.resume_save_from_title", payload)
+        return payload
+    except BizHawkBridgeError as exc:
+        raise bridge_error("emulator.macro.resume_save_from_title.error", exc) from exc
 
 
 @app.get("/api/emulator/macro/feedback")

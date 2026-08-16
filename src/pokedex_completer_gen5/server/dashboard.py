@@ -121,6 +121,9 @@ DASHBOARD_HTML = """<!doctype html>
     <div class="button-row">
       <button type="button" onclick="runMacro('/api/emulator/macro/open-menu')">Open Menu Macro</button>
       <button type="button" onclick="runMacro('/api/emulator/macro/close-menu')">Close Menu Macro</button>
+      <button type="button" onclick="runMacro('/api/emulator/macro/resume-save-from-title')">
+        Title → Continue Save
+      </button>
       <button type="button" onclick="macroFeedback('success')">Macro Worked</button>
       <button type="button" onclick="macroFeedback('failure')">Macro Failed</button>
       <button type="button" onclick="macroFeedback('uncertain')">Macro Uncertain</button>
