@@ -121,6 +121,38 @@ def test_emulator_macro_open_menu_endpoint(monkeypatch: pytest.MonkeyPatch) -> N
     assert response.json()["validator_event"]["event_type"] == "macro_visual_verification"
 
 
+def test_emulator_memory_read_bytes_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_bridge_request(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+        assert method == "memory.read_bytes"
+        assert params == {"domain": "Main RAM", "address": 16, "length": 4}
+        return {"ok": True, "method": method, "values_csv": "1,2,3,255", "hex": "010203FF"}
+
+    monkeypatch.setattr("pokedex_completer_gen5.server.rest.bridge_request", fake_bridge_request)
+    client = TestClient(app)
+    response = client.post(
+        "/api/emulator/memory/read-bytes",
+        json={"domain": "Main RAM", "address": 16, "length": 4},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["values"] == [1, 2, 3, 255]
+    assert response.json()["hex"] == "010203FF"
+
+
+def test_emulator_memory_read_u8_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_bridge_request(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+        assert method == "memory.read_u8"
+        assert params == {"domain": "Main RAM", "address": 32}
+        return {"ok": True, "method": method, "value": 42}
+
+    monkeypatch.setattr("pokedex_completer_gen5.server.rest.bridge_request", fake_bridge_request)
+    client = TestClient(app)
+    response = client.post("/api/emulator/memory/read-u8", json={"domain": "Main RAM", "address": 32})
+
+    assert response.status_code == 200
+    assert response.json()["value"] == 42
+
+
 def test_emulator_macro_feedback_endpoint() -> None:
     client = TestClient(app)
     response = client.post(

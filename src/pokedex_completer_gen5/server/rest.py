@@ -80,6 +80,15 @@ class EmulatorFrameAdvanceRequest(BaseModel):
     frames: int = Field(default=1, ge=1, le=600)
 
 
+class EmulatorMemoryReadRequest(BaseModel):
+    domain: str = Field(default="", max_length=120)
+    address: int = Field(ge=0, le=0xFFFFFFFF)
+
+
+class EmulatorMemoryReadBytesRequest(EmulatorMemoryReadRequest):
+    length: int = Field(default=16, ge=1, le=4096)
+
+
 class EmulatorMacroRequest(BaseModel):
     wait_frames: int = Field(default=get_settings().timing.macro_wait_frames, ge=1, le=180)
     visual_max_attempts: int = Field(default=get_settings().timing.macro_visual_max_attempts, ge=1, le=10)
@@ -589,6 +598,29 @@ def emulator_wait_informative_screenshot(request: InformativeScreenshotRequest |
         return payload
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.screenshot.wait_informative.error", exc) from exc
+
+
+@app.post("/api/emulator/memory/read-u8")
+def emulator_memory_read_u8(request: EmulatorMemoryReadRequest) -> dict[str, Any]:
+    try:
+        payload = bridge_request("memory.read_u8", {"domain": request.domain, "address": request.address})
+        return bridge_response("emulator.memory.read_u8", payload)
+    except BizHawkBridgeError as exc:
+        raise bridge_error("emulator.memory.read_u8.error", exc) from exc
+
+
+@app.post("/api/emulator/memory/read-bytes")
+def emulator_memory_read_bytes(request: EmulatorMemoryReadBytesRequest) -> dict[str, Any]:
+    try:
+        payload = bridge_request(
+            "memory.read_bytes",
+            {"domain": request.domain, "address": request.address, "length": request.length},
+        )
+        values_csv = str(payload.get("values_csv", ""))
+        payload["values"] = [int(item) for item in values_csv.split(",") if item]
+        return bridge_response("emulator.memory.read_bytes", payload)
+    except BizHawkBridgeError as exc:
+        raise bridge_error("emulator.memory.read_bytes.error", exc) from exc
 
 
 @app.get("/api/emulator/memory/domains")

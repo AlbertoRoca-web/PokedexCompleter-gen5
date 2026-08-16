@@ -116,6 +116,10 @@ DASHBOARD_HTML = """<!doctype html>
       <button type="button" onclick="waitInformativeScreenshot()">Wait Informative Screenshot</button>
       <button type="button" onclick="artifactListFetch()">Artifacts</button>
       <button type="button" onclick="memoryDomainsFetch()">Memory Domains</button>
+      <input id="memoryDomain" placeholder="domain e.g. Main RAM" style="max-width:150px;">
+      <input id="memoryAddress" placeholder="address hex/dec" style="max-width:130px;">
+      <input id="memoryLength" placeholder="len" value="32" style="max-width:60px;">
+      <button type="button" onclick="memoryReadBytesFetch()">Read Bytes</button>
       <button type="button" onclick="romIdentityFetch()">ROM Identity</button>
       <button type="button" onclick="emulatorInfoFetch()">Emulator Info</button>
     </div>
@@ -409,6 +413,23 @@ async function artifactListFetch() {
 
 async function memoryDomainsFetch() {
   await apiToPre('/api/emulator/memory/domains', { method: 'GET' }, 'emulatorOutput');
+}
+
+function parseMemoryAddress(value) {
+  const trimmed = value.trim();
+  if (!trimmed) return 0;
+  return Number.parseInt(trimmed, trimmed.toLowerCase().startsWith('0x') ? 16 : 10);
+}
+
+async function memoryReadBytesFetch() {
+  const domain = document.getElementById('memoryDomain').value;
+  const address = parseMemoryAddress(document.getElementById('memoryAddress').value);
+  const length = Number.parseInt(document.getElementById('memoryLength').value || '32', 10);
+  await apiToPre('/api/emulator/memory/read-bytes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ domain, address, length })
+  }, 'emulatorOutput');
 }
 
 async function romIdentityFetch() {

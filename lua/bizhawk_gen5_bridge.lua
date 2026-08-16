@@ -159,6 +159,62 @@ local function screenshot(path)
     return json_object({ ok = result == true, method = "screenshot", path = path })
 end
 
+local function with_memory_domain(domain, callback)
+    if domain ~= nil and domain ~= "" then
+        memory.usememorydomain(domain)
+    end
+    return callback()
+end
+
+local function read_memory_u8(domain, address)
+    address = tonumber(address) or 0
+    local ok, result = pcall(function()
+        return with_memory_domain(domain, function()
+            return memory.read_u8(address)
+        end)
+    end)
+    if not ok then
+        return json_object({ ok = false, method = "memory.read_u8", domain = domain, address = address, error = tostring(result) })
+    end
+    return json_object({ ok = true, method = "memory.read_u8", domain = domain, address = address, value = result })
+end
+
+local function read_memory_bytes(domain, address, length)
+    address = tonumber(address) or 0
+    length = tonumber(length) or 1
+    if length < 1 then
+        length = 1
+    end
+    if length > 4096 then
+        length = 4096
+    end
+    local ok, result = pcall(function()
+        return with_memory_domain(domain, function()
+            local values = {}
+            local hex_values = {}
+            for index = 0, length - 1 do
+                local value = memory.read_u8(address + index)
+                table.insert(values, tostring(value))
+                table.insert(hex_values, string.format("%02X", value))
+            end
+            return table.concat(values, ",") .. "|" .. table.concat(hex_values, "")
+        end)
+    end)
+    if not ok then
+        return json_object({ ok = false, method = "memory.read_bytes", domain = domain, address = address, length = length, error = tostring(result) })
+    end
+    local values_csv, hex = result:match("([^|]*)|(.*)")
+    return json_object({
+        ok = true,
+        method = "memory.read_bytes",
+        domain = domain,
+        address = address,
+        length = length,
+        values_csv = values_csv or "",
+        hex = hex or ""
+    })
+end
+
 local function list_memory_domains()
     local ok, result = pcall(function()
         local domains = memory.getmemorydomainlist()
@@ -211,6 +267,14 @@ local function handle_request(payload)
         response = screenshot(extract_string(payload, "path", ""))
     elseif method == "memory.list_domains" then
         response = list_memory_domains()
+    elseif method == "memory.read_u8" then
+        response = read_memory_u8(extract_string(payload, "domain", ""), extract_number(payload, "address", 0))
+    elseif method == "memory.read_bytes" then
+        response = read_memory_bytes(
+            extract_string(payload, "domain", ""),
+            extract_number(payload, "address", 0),
+            extract_number(payload, "length", 1)
+        )
     else
         response = json_object({ ok = false, error = "unknown method", method = method })
     end
