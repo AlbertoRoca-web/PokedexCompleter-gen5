@@ -56,6 +56,7 @@ def run_resume_saved_game_from_title(
     wait_after_start_frames: int = 90,
     wait_after_continue_frames: int = 600,
     wait_after_cgear_prompt_frames: int = 180,
+    wait_after_cgear_down_frames: int = 30,
     wait_after_cgear_confirm_frames: int = 600,
     visual_max_attempts: int = 5,
     visual_advance_frames: int = 30,
@@ -107,7 +108,7 @@ def run_resume_saved_game_from_title(
         reference=after_start,
         label=f"title-flow-{flow_id}-after-continue",
         phase_prefix="confirm-continue",
-        action="confirm",
+        action="A",
         press_frames=continue_press_frames,
         wait_frames=wait_after_continue_frames,
         max_change_attempts=change_max_attempts,
@@ -133,10 +134,15 @@ def run_resume_saved_game_from_title(
         verification["reason"] = "Still on Continue menu after confirm; unsafe to continue C-Gear sequence."
         return TitleResumeFlowResult(id=flow_id, status="needs-human", phases=phases, verification=verification)
 
-    phases.append(_press_phase(bridge_request, "cgear-prompt-select-no", "down", press_frames=press_frames))
-    phases.append(_press_phase(bridge_request, "cgear-prompt-confirm-no", "confirm", press_frames=press_frames))
+    phases.append(_press_phase(bridge_request, "cgear-prompt-select-no", "Down", press_frames=press_frames))
+    phases.append(_advance_phase(bridge_request, "cgear-prompt-wait-after-down", wait_after_cgear_down_frames))
+    phases.append(
+        _press_phase(bridge_request, "cgear-prompt-confirm-no-ds-a-keyboard-x", "A", press_frames=press_frames)
+    )
     phases.append(_advance_phase(bridge_request, "minimum-wait-after-cgear-no", wait_after_cgear_prompt_frames))
-    phases.append(_press_phase(bridge_request, "cgear-restricted-confirm-yes", "confirm", press_frames=press_frames))
+    phases.append(
+        _press_phase(bridge_request, "cgear-restricted-confirm-yes-ds-a-keyboard-x", "A", press_frames=press_frames)
+    )
     phases.append(_advance_phase(bridge_request, "minimum-wait-after-cgear-confirm", wait_after_cgear_confirm_frames))
     final, final_phases = _observe_until_not_boot(
         bridge_request,

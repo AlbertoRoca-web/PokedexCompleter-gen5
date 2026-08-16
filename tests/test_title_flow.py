@@ -54,6 +54,7 @@ def test_resume_saved_game_from_title_candidate_overworld(monkeypatch, tmp_path:
         wait_after_start_frames=2,
         wait_after_continue_frames=3,
         wait_after_cgear_prompt_frames=3,
+        wait_after_cgear_down_frames=2,
         wait_after_cgear_confirm_frames=3,
         visual_max_attempts=1,
         press_frames=5,
@@ -69,6 +70,7 @@ def test_resume_saved_game_from_title_candidate_overworld(monkeypatch, tmp_path:
     assert ("press", {"button": "Start", "frames": 30}) in calls
     assert ("press", {"button": "A", "frames": 5}) in calls
     assert ("press", {"button": "Down", "frames": 5}) in calls
+    assert ("frame_advance", {"frames": 2}) in calls
     assert any(method == "bridge.info" for method, _ in calls)
 
 
@@ -102,6 +104,7 @@ def test_resume_saved_game_skips_start_when_already_on_continue_menu(monkeypatch
         wait_after_start_frames=2,
         wait_after_continue_frames=3,
         wait_after_cgear_prompt_frames=3,
+        wait_after_cgear_down_frames=2,
         wait_after_cgear_confirm_frames=3,
         visual_max_attempts=1,
         press_frames=5,
