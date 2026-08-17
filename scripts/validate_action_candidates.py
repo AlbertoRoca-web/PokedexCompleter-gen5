@@ -159,14 +159,42 @@ def _rank_candidates(
 
 def _read_addresses(client: httpx.Client, *, domain: str, addresses: list[int]) -> dict[str, int]:
     values: dict[str, int] = {}
-    for address in addresses:
-        response = client.post("/api/emulator/memory/read-u8", json={"domain": domain, "address": address})
+    for start, grouped_addresses in _group_nearby_addresses(addresses, max_span=1024):
+        length = max(grouped_addresses) - start + 1
+        response = client.post(
+            "/api/emulator/memory/read-bytes",
+            json={"domain": domain, "address": start, "length": length},
+        )
         response.raise_for_status()
         payload = response.json()
         if payload.get("ok") is not True:
-            raise RuntimeError(f"RAM read failed at 0x{address:X}: {payload}")
-        values[f"0x{address:X}"] = int(payload["value"])
+            raise RuntimeError(f"RAM read failed at 0x{start:X}: {payload}")
+        raw_values = [int(value) for value in payload.get("values", [])]
+        for address in grouped_addresses:
+            offset = address - start
+            values[f"0x{address:X}"] = raw_values[offset]
     return values
+
+
+def _group_nearby_addresses(addresses: list[int], *, max_span: int) -> list[tuple[int, list[int]]]:
+    sorted_addresses = sorted(set(addresses))
+    groups: list[tuple[int, list[int]]] = []
+    current_start: int | None = None
+    current_addresses: list[int] = []
+    for address in sorted_addresses:
+        if current_start is None:
+            current_start = address
+            current_addresses = [address]
+            continue
+        if address - current_start < max_span:
+            current_addresses.append(address)
+            continue
+        groups.append((current_start, current_addresses))
+        current_start = address
+        current_addresses = [address]
+    if current_start is not None:
+        groups.append((current_start, current_addresses))
+    return groups
 
 
 def _checkpoint_path_from_save(payload: dict[str, Any]) -> str:
