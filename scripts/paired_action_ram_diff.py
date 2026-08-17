@@ -15,16 +15,19 @@ DEFAULT_BASE_URL = "http://127.0.0.1:8787"
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Diff RAM after actions, resetting from one checkpoint each time.")
+    parser = argparse.ArgumentParser(
+        description="Diff RAM per action using a fresh pre-action baseline after checkpoint load."
+    )
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--domain", default="ARM9 System Bus")
     parser.add_argument("--start", default="0x020A0000")
     parser.add_argument("--length", type=int, default=65536)
     parser.add_argument("--actions", nargs="+", default=["Up", "Down", "Left", "Right"])
-    parser.add_argument("--checkpoint", default="ram-action-probe")
+    parser.add_argument("--checkpoint", default="paired-action-probe")
     parser.add_argument("--press-frames", type=int, default=16)
-    parser.add_argument("--advance-frames", type=int, default=120)
-    parser.add_argument("--max-changes-per-action", type=int, default=300)
+    parser.add_argument("--advance-frames", type=int, default=90)
+    parser.add_argument("--settle-frames", type=int, default=15)
+    parser.add_argument("--max-changes-per-action", type=int, default=500)
     parser.add_argument("--no-ensure-ready", action="store_true")
     args = parser.parse_args()
 
@@ -36,21 +39,23 @@ def main() -> int:
             return 1
 
     start = _parse_int(args.start)
-    _press_and_wait(client, "B", 5, 60)
+    _press_and_wait(client, "B", 5, 30)
     save_response = client.post("/api/emulator/checkpoint/save", json={"name": args.checkpoint})
     save_response.raise_for_status()
     save_payload = save_response.json()
     checkpoint_path = _checkpoint_path_from_save(save_payload)
-    baseline = _read_bytes(client, domain=args.domain, start=start, length=args.length)
 
     runs: list[dict[str, Any]] = []
     hit_counter: Counter[int] = Counter()
     action_counter: dict[int, set[str]] = {}
     for action in args.actions:
         _load_checkpoint(client, checkpoint_path)
+        if args.settle_frames > 0:
+            _advance(client, args.settle_frames)
+        before = _read_bytes(client, domain=args.domain, start=start, length=args.length)
         _press_and_wait(client, action, args.press_frames, args.advance_frames)
-        values = _read_bytes(client, domain=args.domain, start=start, length=args.length)
-        changes = _changes(start, baseline, values, max_changes=args.max_changes_per_action)
+        after = _read_bytes(client, domain=args.domain, start=start, length=args.length)
+        changes = _changes(start, before, after, max_changes=args.max_changes_per_action)
         for change in changes:
             address = int(change["address"])
             hit_counter[address] += 1
@@ -72,7 +77,7 @@ def main() -> int:
             "hit_count": hit_count,
             "actions": sorted(action_counter.get(address, set())),
         }
-        for address, hit_count in hit_counter.most_common(200)
+        for address, hit_count in hit_counter.most_common(300)
     ]
     payload = {
         "ok": True,
@@ -89,7 +94,7 @@ def main() -> int:
         "ranked_candidates": ranked,
     }
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = OUTPUT_DIR / f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-action-checkpoint-diff.json"
+    output_path = OUTPUT_DIR / f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-paired-action-diff.json"
     output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(json.dumps(_summary(payload, output_path), indent=2))
     return 0
@@ -148,7 +153,11 @@ def _changes(start: int, before: list[int], after: list[int], *, max_changes: in
 
 def _press_and_wait(client: httpx.Client, button: str, press_frames: int, advance_frames: int) -> None:
     client.post("/api/emulator/press", json={"button": button, "frames": press_frames}).raise_for_status()
-    client.post("/api/emulator/frame-advance", json={"frames": advance_frames}).raise_for_status()
+    _advance(client, advance_frames)
+
+
+def _advance(client: httpx.Client, frames: int) -> None:
+    client.post("/api/emulator/frame-advance", json={"frames": frames}).raise_for_status()
 
 
 def _summary(payload: dict[str, Any], output_path: Path) -> dict[str, Any]:
@@ -159,7 +168,7 @@ def _summary(payload: dict[str, Any], output_path: Path) -> dict[str, Any]:
         "hex_start": payload["hex_start"],
         "length": payload["length"],
         "action_counts": [(run["action"], run["changed_count"]) for run in payload["runs"]],
-        "top_candidates": payload["ranked_candidates"][:40],
+        "top_candidates": payload["ranked_candidates"][:50],
     }
 
 
