@@ -55,6 +55,17 @@ def test_detect_player_pixel_from_synthetic_sprite(tmp_path: Path) -> None:
     assert detect_player_pixel(path) == PixelPoint(120, 138)
 
 
+def test_detect_player_pixel_handles_white_cap_back_sprite(tmp_path: Path) -> None:
+    path = tmp_path / "white-cap-sprite.png"
+    image = Image.new("RGB", (256, 384), (239, 207, 150))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((163, 106, 184, 132), fill=(60, 44, 60))
+    draw.rectangle((168, 102, 179, 112), fill=(239, 239, 247))
+    image.save(path)
+
+    assert detect_player_pixel(path, expected_tile=TilePoint(9, 5)) == PixelPoint(168, 132)
+
+
 def test_detect_player_pixel_prefers_expected_tile_over_distractor(tmp_path: Path) -> None:
     path = tmp_path / "sprite-with-distractor.png"
     image = Image.new("RGB", (256, 384), (239, 207, 150))

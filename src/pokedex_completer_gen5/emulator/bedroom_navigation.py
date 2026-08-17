@@ -117,7 +117,10 @@ def detect_player_pixel(
         y1, y2 = min(ys), max(ys)
         box_width = x2 - x1 + 1
         box_height = y2 - y1 + 1
-        if not (8 <= box_width <= 38 and 8 <= box_height <= 42):
+        if expected_tile is None:
+            if not (8 <= box_width <= 38 and 8 <= box_height <= 42):
+                continue
+        elif not (5 <= box_width <= 80 and 5 <= box_height <= 90):
             continue
         if y2 < 100:
             continue
@@ -127,10 +130,18 @@ def detect_player_pixel(
     if expected_tile is not None:
         expected_pixel = bedroom_tile_to_pixel(expected_tile)
         _score, _bottom, _size, x1, x2, _y1, y2 = min(
-            (_pixel_distance_squared(PixelPoint((x1 + x2) // 2, y2), expected_pixel), y2, size, x1, x2, y1, y2)
+            (
+                _pixel_distance_squared(PixelPoint(_clamp(expected_pixel.x, x1, x2), y2), expected_pixel),
+                y2,
+                size,
+                x1,
+                x2,
+                y1,
+                y2,
+            )
             for y2, size, x1, x2, y1, _component_bottom in candidates
         )
-        return PixelPoint((x1 + x2) // 2, y2)
+        return PixelPoint(_clamp(expected_pixel.x, x1, x2), y2)
     _bottom, _size, x1, x2, _y1, y2 = max(candidates)
     return PixelPoint((x1 + x2) // 2, y2)
 
@@ -192,9 +203,10 @@ def _is_spriteish_pixel(r: int, g: int, b: int) -> bool:
         return False
     dark_outline = r < 145 and g < 145 and b < 170
     red_hat = r >= 180 and g <= 145 and b <= 145
+    white_cap = r >= 185 and g >= 185 and b >= 230
     blue_shadow = b > r + 20 and b > g + 10 and b >= 90
     floor_or_wall = r > 180 and g > 160 and 100 < b < 230
-    return (dark_outline or red_hat or blue_shadow) and not floor_or_wall
+    return (dark_outline or red_hat or white_cap or blue_shadow) and not floor_or_wall
 
 
 def _connected_components(mask: set[tuple[int, int]]) -> list[list[tuple[int, int]]]:
