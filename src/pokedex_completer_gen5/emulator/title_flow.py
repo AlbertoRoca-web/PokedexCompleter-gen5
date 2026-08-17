@@ -79,8 +79,9 @@ def run_resume_saved_game_from_title(
     phases.append(_screenshot_phase("before", before))
 
     before_type = _latest_type(before)
+    before_is_continue_menu = _latest_path_matches(before, _looks_like_continue_menu_frame)
     after_start = before
-    if before_type != "menu-like":
+    if not before_is_continue_menu:
         phases.append(_advance_phase(bridge_request, "minimum-wait-before-title-start-loop", wait_after_start_frames))
         after_start, after_start_phases = _press_until_continue_menu(
             bridge_request,
@@ -99,7 +100,7 @@ def run_resume_saved_game_from_title(
             TitleFlowPhase(
                 name="skip-start-already-menu-like",
                 action={"method": "classify_screenshot"},
-                result={"ok": True, "screen_type": before_type},
+                result={"ok": True, "screen_type": before_type, "continue_menu": before_is_continue_menu},
             )
         )
 
