@@ -269,11 +269,11 @@ Method:
 
 1. Save checkpoint while idle in bedroom.
 2. Sample candidate addresses before action.
-3. Press `B` as control action.
+3. Use `Wait`/idle as the control action.
 4. Press movement directions as experimental actions.
-5. Reject anything that changes on `B`.
+5. Reject anything that changes identically on idle/control.
 6. Repeat multiple cycles.
-7. Promote only stable candidates.
+7. Promote only stable, movement-specific candidates.
 
 Existing script:
 
@@ -287,7 +287,9 @@ Expected output ranking fields:
 baseline_stability
 movement_change_rate
 control_change_rate
+movement_specific_change_rate
 distinct_directional_after_modes
+action_modes_different_from_control
 ```
 
 Good candidate shape:
@@ -296,15 +298,68 @@ Good candidate shape:
 baseline_stability ~= 1.0
 movement_change_rate high
 control_change_rate == 0.0
+movement_specific_change_rate > 0.0
 ```
 
 Bad candidate shape:
 
 ```text
-changes on B
+changes on Wait/control
 baseline drifts
 changes identically for every action including no-op/control
+unchanged stable bytes that only look good because they are boring
 ```
+
+Current discovery notes from 2026-08-17:
+
+```text
+scripts/validate_action_candidates.py now supports:
+- batched nearby RAM reads via /api/emulator/memory/read-bytes
+- true idle control action: Wait
+- --control-action
+- --range START LENGTH for focused neighborhood validation
+- compact stdout summaries while preserving full JSON output
+```
+
+Recent validation artifacts:
+
+```text
+.runtime/ram-validation/20260817T020327Z-candidate-validation.json
+  range: 0x2146924 length 0x200 around 0x2146A24
+  result: weak/noisy only; 0x2146A24 changes on Wait/control and is not a clean semantic byte
+
+.runtime/ram-validation/20260817T021250Z-candidate-validation.json
+  range: 0x214BC00 length 0x400
+  result: several action-specific candidates, but many did not survive shortlist validation
+
+.runtime/ram-validation/20260817T021638Z-candidate-validation.json
+  range: 0x214CC00 length 0x600
+  result: many hot 0x214CFxx candidates looked promising in 2 cycles but later collapsed as control/time-like bytes
+
+.runtime/ram-validation/20260817T022428Z-candidate-validation.json
+  shortlist: 5 cycles across combined hot candidates
+  result: most candidates rejected; mild remaining leads are 0x214BC97 and 0x214D0F2
+```
+
+Current shortlist interpretation:
+
+```text
+0x214BC97:
+  baseline_stability=1.0
+  movement_change_rate=0.3
+  control_change_rate=0.0
+  movement_specific_change_rate=0.3
+  action_after_modes: Down=4, Left=1, Right=1, Up=1, Wait=1
+
+0x214D0F2:
+  baseline_stability=1.0
+  movement_change_rate=0.25
+  control_change_rate=0.0
+  movement_specific_change_rate=0.25
+  action_after_modes: Down=1, Left=1, Right=1, Up=3, Wait=1
+```
+
+These are not strong enough to promote into the RAM profile yet. They are leads for more controlled probes, not verified offsets. The highly-ranked `0x214CFxx` bytes are currently suspected transition/timer/control artifacts because they changed identically or near-identically under `Wait` in the 5-cycle shortlist.
 
 ### Phase 2: Facing direction
 
@@ -322,7 +377,7 @@ repeat for Down/Left/Right
 
 A facing field should:
 
-- not change on `B`;
+- not change on `Wait`/idle control;
 - have stable baseline;
 - map to one of four values after directional taps;
 - not require full tile movement.
