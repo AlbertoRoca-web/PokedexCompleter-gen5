@@ -156,6 +156,7 @@ Existing tooling:
 - `scripts/action_ram_checkpoint_diff.py`
 - `scripts/paired_action_ram_diff.py`
 - `scripts/validate_action_candidates.py`
+- `scripts/timeline_action_candidates.py`
 
 Important fix made:
 
@@ -319,6 +320,12 @@ scripts/validate_action_candidates.py now supports:
 - --control-action
 - --range START LENGTH for focused neighborhood validation
 - compact stdout summaries while preserving full JSON output
+
+scripts/timeline_action_candidates.py now supports:
+- checkpointed per-action RAM timelines
+- configurable sample frames after press/tap
+- longer pre-checkpoint settling to reduce non-idle checkpoint contamination
+- ranking by action-vs-idle divergence over time instead of one after-snapshot
 ```
 
 Recent validation artifacts:
@@ -378,6 +385,24 @@ The next probe should either:
 1. find/force a truly idle checkpoint and sample longer before saving it; or
 2. use visual tile/facing confirmation plus RAM timelines to distinguish transient animation bytes from semantic facing/position bytes.
 ```
+
+A first timeline run was started with:
+
+```text
+scripts/timeline_action_candidates.py \
+  0x214BC97 0x214D0F2 0x2146A24 0x214BE10 0x214BFB5 0x214BF69 0x214BF6C \
+  0x214CF01 0x214CF04 0x214CF10 0x214CF15 0x214CFC5 0x214CFF6 \
+  --cycles 3 \
+  --actions Up Down Left Right \
+  --checkpoint timeline-hot-leads-1 \
+  --press-frames 8 \
+  --sample-frames 0 5 10 20 40 80 120 180 240 \
+  --settle-frames 60 \
+  --pre-checkpoint-settle-frames 240 \
+  --no-ensure-ready
+```
+
+Do not interpret this until its `.runtime/ram-validation/*-timeline-validation.json` artifact exists and is reviewed.
 
 ### Phase 2: Facing direction
 
