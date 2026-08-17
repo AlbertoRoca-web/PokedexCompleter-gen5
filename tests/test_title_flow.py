@@ -6,6 +6,7 @@ from typing import Any
 from PIL import Image, ImageDraw
 
 from pokedex_completer_gen5.emulator.title_flow import (
+    _looks_like_continue_menu_frame,
     _looks_like_gen5_overworld_frame,
     run_resume_saved_game_from_title,
 )
@@ -150,6 +151,16 @@ def test_resume_flow_refuses_cgear_inputs_when_still_on_continue(monkeypatch, tm
     assert ("press", {"button": "Down", "frames": 5}) not in calls
 
 
+def test_continue_menu_guard_distinguishes_title_from_continue(tmp_path: Path) -> None:
+    title = tmp_path / "title.png"
+    continue_menu = tmp_path / "continue.png"
+    _title_like(title)
+    _continue_menu_like(continue_menu)
+
+    assert _looks_like_continue_menu_frame(title) is False
+    assert _looks_like_continue_menu_frame(continue_menu) is True
+
+
 def test_overworld_frame_guard_rejects_dark_cinematic(tmp_path: Path) -> None:
     path = tmp_path / "cinematic.png"
     image = Image.new("RGB", (256, 384), "black")
@@ -161,6 +172,16 @@ def test_overworld_frame_guard_rejects_dark_cinematic(tmp_path: Path) -> None:
     assert _looks_like_gen5_overworld_frame(path) is False
 
 
+def _title_like(path: Path) -> None:
+    image = Image.new("RGB", (256, 384), "white")
+    draw = ImageDraw.Draw(image)
+    draw.text((65, 50), "Pokemon", fill=(20, 80, 220))
+    draw.text((70, 110), "WHITE", fill="black")
+    draw.text((90, 160), "PRESS START", fill="black")
+    draw.rectangle((80, 220, 180, 340), fill=(20, 20, 20))
+    image.save(path)
+
+
 def _boot_logo(path: Path) -> None:
     image = Image.new("RGB", (256, 384), "white")
     draw = ImageDraw.Draw(image)
@@ -169,11 +190,15 @@ def _boot_logo(path: Path) -> None:
 
 
 def _continue_menu_like(path: Path) -> None:
-    image = Image.new("RGB", (256, 384), "white")
+    image = Image.new("RGB", (256, 384), (238, 238, 238))
     draw = ImageDraw.Draw(image)
-    draw.rectangle((80, 80, 230, 260), outline="black", width=3)
-    draw.rectangle((100, 120, 210, 145), fill="black")
-    draw.rectangle((100, 170, 210, 195), fill="black")
+    draw.rectangle((24, 16, 228, 126), fill=(92, 118, 140), outline=(0, 220, 230), width=3)
+    draw.rectangle((36, 36, 96, 105), fill=(70, 92, 120))
+    draw.text((36, 20), "CONTINUE", fill="white")
+    draw.text((104, 54), "Rolo", fill=(80, 180, 255))
+    draw.text((104, 75), "Nuvema Town", fill="white")
+    draw.rectangle((33, 132, 223, 151), fill=(65, 65, 65), outline="white")
+    draw.rectangle((33, 158, 223, 177), fill=(65, 65, 65), outline="white")
     image.save(path)
 
 

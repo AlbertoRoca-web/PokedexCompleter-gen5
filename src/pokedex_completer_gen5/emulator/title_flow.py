@@ -435,13 +435,27 @@ def _latest_path_matches(result: InformativeScreenshotResult, predicate: Callabl
 
 def _looks_like_continue_menu_frame(path: Path) -> bool:
     with Image.open(path) as image:
-        gray = image.convert("L")
-        width, height = gray.size
-        top = gray.crop((0, 0, width, height // 2))
-        bottom = gray.crop((0, height // 2, width, height))
-        top_mean = float(ImageStat.Stat(top).mean[0])
-        bottom_mean = float(ImageStat.Stat(bottom).mean[0])
-    return top_mean >= 120.0 and bottom_mean >= 150.0
+        rgb = image.convert("RGB")
+        save_panel = rgb.crop((20, 10, 235, 135))
+        stat = ImageStat.Stat(save_panel)
+        red_mean, _green_mean, blue_mean = (float(value) for value in stat.mean[:3])
+        gray = save_panel.convert("L")
+        nonwhite_ratio = _dark_ratio(gray, threshold=220)
+        blueish_ratio = _blueish_ratio(save_panel)
+    return nonwhite_ratio >= 0.70 and blueish_ratio >= 0.55 and blue_mean > red_mean
+
+
+def _blueish_ratio(image: Image.Image) -> float:
+    raw_pixels = image.get_flattened_data() if hasattr(image, "get_flattened_data") else image.getdata()
+    pixels = list(cast(Any, raw_pixels))
+    if not pixels:
+        return 0.0
+    blueish = 0
+    for pixel in pixels:
+        red, green, blue = (int(channel) for channel in pixel[:3])
+        if blue >= red + 5 and blue >= green - 20 and 40 <= red <= 210:
+            blueish += 1
+    return blueish / len(pixels)
 
 
 def _looks_like_gen5_overworld_frame(path: Path) -> bool:
