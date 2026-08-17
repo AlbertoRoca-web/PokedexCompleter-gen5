@@ -361,6 +361,24 @@ Current shortlist interpretation:
 
 These are not strong enough to promote into the RAM profile yet. They are leads for more controlled probes, not verified offsets. The highly-ranked `0x214CFxx` bytes are currently suspected transition/timer/control artifacts because they changed identically or near-identically under `Wait` in the 5-cycle shortlist.
 
+Tiny-tap facing probe update:
+
+```text
+.runtime/ram-validation/20260817T023332Z-candidate-validation.json
+  shortlist: 0x214BE10, 0x214BFB5, 0x214BF69, 0x214BF6C, 0x214CF01, 0x214CF04, 0x214CF10, 0x214CF15
+  method: press_frames=2, advance_frames=25, cycles=5, Wait control
+  result: facing-like leads collapsed; no candidate is reliable enough for profile promotion
+```
+
+Interpretation:
+
+```text
+Tiny directional taps are still changing lots of transient/control/timer-like bytes.
+The next probe should either:
+1. find/force a truly idle checkpoint and sample longer before saving it; or
+2. use visual tile/facing confirmation plus RAM timelines to distinguish transient animation bytes from semantic facing/position bytes.
+```
+
 ### Phase 2: Facing direction
 
 Use short taps that turn the player without moving a tile when possible.
