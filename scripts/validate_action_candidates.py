@@ -19,7 +19,15 @@ DEFAULT_ACTIONS = [DEFAULT_CONTROL_ACTION, "Up", "Down", "Left", "Right"]
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate candidate RAM bytes against repeated checkpointed actions.")
-    parser.add_argument("addresses", nargs="+", help="Candidate addresses, decimal or hex.")
+    parser.add_argument("addresses", nargs="*", help="Candidate addresses, decimal or hex.")
+    parser.add_argument(
+        "--range",
+        dest="ranges",
+        action="append",
+        nargs=2,
+        metavar=("START", "LENGTH"),
+        help="Add every byte in an address range. START is decimal/hex; LENGTH is decimal/hex byte count.",
+    )
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--domain", default="ARM9 System Bus")
     parser.add_argument("--actions", nargs="+", default=DEFAULT_ACTIONS)
@@ -39,7 +47,7 @@ def main() -> int:
             print(json.dumps({"ok": False, "stage": "ensure-ready", "ready": ready}, indent=2))
             return 1
 
-    addresses = [_parse_int(value) for value in args.addresses]
+    addresses = _candidate_addresses(args.addresses, args.ranges)
     actions = _with_control_action(args.actions, args.control_action)
     _press_and_wait(client, "B", 5, 30)
     save_response = client.post("/api/emulator/checkpoint/save", json={"name": args.checkpoint})
@@ -276,6 +284,20 @@ def _summary(payload: dict[str, Any], output_path: Path) -> dict[str, Any]:
         "cycles": payload["cycles"],
         "top_candidates": payload["ranked_candidates"][:30],
     }
+
+
+def _candidate_addresses(addresses: list[str], ranges: list[list[str]] | None) -> list[int]:
+    parsed_addresses = [_parse_int(value) for value in addresses]
+    for start_value, length_value in ranges or []:
+        start = _parse_int(start_value)
+        length = _parse_int(length_value)
+        if length < 1:
+            raise ValueError(f"Address range length must be positive: {length_value}")
+        parsed_addresses.extend(range(start, start + length))
+    unique_addresses = sorted(set(parsed_addresses))
+    if not unique_addresses:
+        raise ValueError("At least one address or --range START LENGTH is required.")
+    return unique_addresses
 
 
 def _parse_int(value: str) -> int:

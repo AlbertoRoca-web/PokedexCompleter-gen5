@@ -38,6 +38,21 @@ class _FakeClient:
         return _FakeResponse({"ok": True, "values": list(range(address, address + length))})
 
 
+def test_candidate_addresses_combines_explicit_addresses_and_ranges() -> None:
+    addresses = validate_action_candidates._candidate_addresses(["0x1002", "0x1000"], [["0x1000", "0x4"]])
+
+    assert addresses == [0x1000, 0x1001, 0x1002, 0x1003]
+
+
+def test_candidate_addresses_requires_at_least_one_address() -> None:
+    try:
+        validate_action_candidates._candidate_addresses([], None)
+    except ValueError as exc:
+        assert "At least one address" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError")
+
+
 def test_group_nearby_addresses_splits_on_max_span() -> None:
     groups = validate_action_candidates._group_nearby_addresses(
         [0x1005, 0x1000, 0x1002, 0x1400, 0x1401],
