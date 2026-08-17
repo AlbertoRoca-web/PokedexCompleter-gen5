@@ -22,6 +22,7 @@ def main() -> int:
     parser.add_argument("--movement-press-frames", type=int, default=28)
     parser.add_argument("--settle-frames", type=int, default=150)
     parser.add_argument("--checkpoint-every", type=int, default=4)
+    parser.add_argument("--initial-expected-tile", nargs=2, type=int, metavar=("X", "Y"))
     parser.add_argument("--ensure-ready", action=argparse.BooleanOptionalAction, default=True)
     args = parser.parse_args()
 
@@ -35,6 +36,7 @@ def main() -> int:
         movement_press_frames=args.movement_press_frames,
         settle_frames=args.settle_frames,
         checkpoint_every=args.checkpoint_every,
+        initial_expected_tile=tuple(args.initial_expected_tile) if args.initial_expected_tile else None,
         ensure_ready=args.ensure_ready,
     )
     print(json.dumps(result, indent=2))
@@ -49,6 +51,7 @@ def _run(
     movement_press_frames: int,
     settle_frames: int,
     checkpoint_every: int,
+    initial_expected_tile: tuple[int, int] | None,
     ensure_ready: bool,
 ) -> dict[str, Any]:
     run_id = datetime.now(UTC).strftime("visual-bedroom-%Y%m%dT%H%M%SZ")
@@ -69,7 +72,7 @@ def _run(
 
     record("checkpoint-start", _post(client, "/api/emulator/checkpoint/save", {"name": f"{run_id}-start"}))
     blocked_tiles: set[tuple[int, int]] = set()
-    last_tile: TilePoint | None = None
+    last_tile: TilePoint | None = TilePoint(*initial_expected_tile) if initial_expected_tile else None
     last_action: str | None = None
     for step in range(1, max_steps + 1):
         screenshot = _get(client, "/api/emulator/screenshot")
