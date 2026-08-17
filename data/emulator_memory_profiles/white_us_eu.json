@@ -9,11 +9,11 @@
       "length": 1,
       "kind": "u8",
       "meaning": {
-        "closed": [6],
+        "closed": [4, 6],
         "open": [7]
       },
       "confidence": "tentative",
-      "evidence": ".runtime/ram-validation/20260816T220100Z-menu-cycle.json"
+      "evidence": ".runtime/ram-validation/20260817T001226Z-menu-cycle.json"
     },
     "battle_state": null,
     "map_id": null,
