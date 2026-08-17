@@ -97,3 +97,30 @@ def test_read_addresses_batches_nearby_addresses() -> None:
             {"domain": "ARM9 System Bus", "address": 0x1400, "length": 1},
         ),
     ]
+
+
+def test_rank_candidates_prefers_movement_specific_changes_over_stable_bytes() -> None:
+    observations = [
+        {
+            "action": "Wait",
+            "before": {"0x10": 7, "0x20": 1},
+            "after": {"0x10": 7, "0x20": 1},
+        },
+        {
+            "action": "Up",
+            "before": {"0x10": 7, "0x20": 1},
+            "after": {"0x10": 7, "0x20": 2},
+        },
+        {
+            "action": "Down",
+            "before": {"0x10": 7, "0x20": 1},
+            "after": {"0x10": 7, "0x20": 3},
+        },
+    ]
+
+    ranked = validate_action_candidates._rank_candidates(observations, [0x10, 0x20], control_action="Wait")
+
+    assert ranked[0]["hex_address"] == "0x20"
+    assert ranked[0]["movement_specific_change_rate"] == 1.0
+    assert ranked[1]["hex_address"] == "0x10"
+    assert ranked[1]["movement_specific_change_rate"] == 0.0

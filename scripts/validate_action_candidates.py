@@ -125,15 +125,21 @@ def _rank_candidates(
             for action, value in action_after_modes.items()
             if action != control_action
         }
+        control_after_mode = action_after_modes.get(control_action)
         distinct_directional_after_modes = len(set(directional_after_modes.values()))
+        action_modes_different_from_control = sum(
+            1 for value in directional_after_modes.values() if value != control_after_mode
+        )
         baseline_stability = _same_ratio(baseline_values)
         movement_change_rate = movement_changed / max(1, len(movement_pairs))
         control_change_rate = control_changed / max(1, len(control_pairs))
+        movement_specific_change_rate = max(0.0, movement_change_rate - control_change_rate)
         score = (
-            movement_change_rate * 4.0
-            + baseline_stability * 3.0
-            + distinct_directional_after_modes * 0.5
-            - control_change_rate * 12.0
+            movement_specific_change_rate * 8.0
+            + baseline_stability * 2.0
+            + action_modes_different_from_control * 1.5
+            + distinct_directional_after_modes * 0.25
+            - control_change_rate * 8.0
         )
         rows.append(
             {
@@ -143,7 +149,9 @@ def _rank_candidates(
                 "baseline_stability": round(baseline_stability, 3),
                 "movement_change_rate": round(movement_change_rate, 3),
                 "control_change_rate": round(control_change_rate, 3),
+                "movement_specific_change_rate": round(movement_specific_change_rate, 3),
                 "distinct_directional_after_modes": distinct_directional_after_modes,
+                "action_modes_different_from_control": action_modes_different_from_control,
                 "before_by_action": before_by_action,
                 "after_by_action": after_by_action,
                 "action_after_modes": action_after_modes,
@@ -153,7 +161,8 @@ def _rank_candidates(
         key=lambda row: (
             float(row["score"]),
             float(row["baseline_stability"]),
-            float(row["movement_change_rate"]),
+            float(row["movement_specific_change_rate"]),
+            int(row["action_modes_different_from_control"]),
             int(row["distinct_directional_after_modes"]),
         ),
         reverse=True,
