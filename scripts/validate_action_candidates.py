@@ -13,7 +13,8 @@ import httpx
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / ".runtime" / "ram-validation"
 DEFAULT_BASE_URL = "http://127.0.0.1:8787"
-DEFAULT_ACTIONS = ["B", "Up", "Down", "Left", "Right"]
+DEFAULT_CONTROL_ACTION = "Wait"
+DEFAULT_ACTIONS = [DEFAULT_CONTROL_ACTION, "Up", "Down", "Left", "Right"]
 
 
 def main() -> int:
@@ -22,6 +23,7 @@ def main() -> int:
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--domain", default="ARM9 System Bus")
     parser.add_argument("--actions", nargs="+", default=DEFAULT_ACTIONS)
+    parser.add_argument("--control-action", default=DEFAULT_CONTROL_ACTION)
     parser.add_argument("--cycles", type=int, default=5)
     parser.add_argument("--checkpoint", default="candidate-validation")
     parser.add_argument("--press-frames", type=int, default=18)
@@ -38,6 +40,7 @@ def main() -> int:
             return 1
 
     addresses = [_parse_int(value) for value in args.addresses]
+    actions = _with_control_action(args.actions, args.control_action)
     _press_and_wait(client, "B", 5, 30)
     save_response = client.post("/api/emulator/checkpoint/save", json={"name": args.checkpoint})
     save_response.raise_for_status()
@@ -46,22 +49,23 @@ def main() -> int:
 
     observations: list[dict[str, Any]] = []
     for cycle in range(1, args.cycles + 1):
-        for action in args.actions:
+        for action in actions:
             _load_checkpoint(client, checkpoint_path)
             if args.settle_frames > 0:
                 _advance(client, args.settle_frames)
             before = _read_addresses(client, domain=args.domain, addresses=addresses)
-            _press_and_wait(client, action, args.press_frames, args.advance_frames)
+            _perform_action(client, action, args.press_frames, args.advance_frames)
             after = _read_addresses(client, domain=args.domain, addresses=addresses)
             observations.append({"cycle": cycle, "action": action, "before": before, "after": after})
 
-    ranked = _rank_candidates(observations, addresses, control_action="B")
+    ranked = _rank_candidates(observations, addresses, control_action=args.control_action)
     payload = {
         "ok": True,
         "created_at": datetime.now(UTC).isoformat(),
         "domain": args.domain,
-        "actions": args.actions,
+        "actions": actions,
         "cycles": args.cycles,
+        "control_action": args.control_action,
         "checkpoint": args.checkpoint,
         "checkpoint_path": checkpoint_path,
         "addresses": [f"0x{address:X}" for address in addresses],
@@ -212,6 +216,20 @@ def _load_checkpoint(client: httpx.Client, checkpoint_path: str) -> None:
         raise RuntimeError(f"Checkpoint load failed: {payload}")
 
 
+def _with_control_action(actions: list[str], control_action: str) -> list[str]:
+    normalized_actions = list(dict.fromkeys(actions))
+    if control_action in normalized_actions:
+        return normalized_actions
+    return [control_action, *normalized_actions]
+
+
+def _perform_action(client: httpx.Client, action: str, press_frames: int, advance_frames: int) -> None:
+    if action.lower() in {"wait", "idle", "none", "noop", "no-op"}:
+        _advance(client, press_frames + advance_frames)
+        return
+    _press_and_wait(client, action, press_frames, advance_frames)
+
+
 def _press_and_wait(client: httpx.Client, button: str, press_frames: int, advance_frames: int) -> None:
     client.post("/api/emulator/press", json={"button": button, "frames": press_frames}).raise_for_status()
     _advance(client, advance_frames)
@@ -245,6 +263,7 @@ def _summary(payload: dict[str, Any], output_path: Path) -> dict[str, Any]:
         "output_path": str(output_path),
         "domain": payload["domain"],
         "actions": payload["actions"],
+        "control_action": payload["control_action"],
         "cycles": payload["cycles"],
         "top_candidates": payload["ranked_candidates"][:30],
     }

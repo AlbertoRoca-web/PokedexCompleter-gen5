@@ -29,6 +29,10 @@ class _FakeClient:
 
     def post(self, path: str, *, json: dict[str, Any]) -> _FakeResponse:
         self.requests.append((path, json))
+        if path == "/api/emulator/frame-advance":
+            return _FakeResponse({"ok": True})
+        if path == "/api/emulator/press":
+            return _FakeResponse({"ok": True})
         address = int(json["address"])
         length = int(json["length"])
         return _FakeResponse({"ok": True, "values": list(range(address, address + length))})
@@ -43,6 +47,29 @@ def test_group_nearby_addresses_splits_on_max_span() -> None:
     assert groups == [
         (0x1000, [0x1000, 0x1002, 0x1005]),
         (0x1400, [0x1400, 0x1401]),
+    ]
+
+
+def test_with_control_action_prepends_missing_control() -> None:
+    assert validate_action_candidates._with_control_action(["Up", "Down", "Up"], "Wait") == ["Wait", "Up", "Down"]
+
+
+def test_perform_action_wait_only_advances_frames() -> None:
+    client = _FakeClient()
+
+    validate_action_candidates._perform_action(client, "Wait", press_frames=7, advance_frames=11)
+
+    assert client.requests == [("/api/emulator/frame-advance", {"frames": 18})]
+
+
+def test_perform_action_button_presses_then_advances() -> None:
+    client = _FakeClient()
+
+    validate_action_candidates._perform_action(client, "Up", press_frames=7, advance_frames=11)
+
+    assert client.requests == [
+        ("/api/emulator/press", {"button": "Up", "frames": 7}),
+        ("/api/emulator/frame-advance", {"frames": 11}),
     ]
 
 
