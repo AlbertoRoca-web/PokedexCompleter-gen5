@@ -142,13 +142,16 @@ def _rank_candidates(
         movement_change_rate = movement_changed / max(1, len(movement_pairs))
         control_change_rate = control_changed / max(1, len(control_pairs))
         movement_specific_change_rate = max(0.0, movement_change_rate - control_change_rate)
-        score = (
-            movement_specific_change_rate * 8.0
-            + baseline_stability * 2.0
-            + action_modes_different_from_control * 1.5
-            + distinct_directional_after_modes * 0.25
-            - control_change_rate * 8.0
-        )
+        if movement_specific_change_rate == 0.0 and action_modes_different_from_control == 0:
+            score = -100.0 + baseline_stability * 0.25 - control_change_rate * 8.0
+        else:
+            score = (
+                movement_specific_change_rate * 8.0
+                + baseline_stability * 2.0
+                + action_modes_different_from_control * 1.5
+                + distinct_directional_after_modes * 0.25
+                - control_change_rate * 8.0
+            )
         rows.append(
             {
                 "address": address,
