@@ -1,0 +1,679 @@
+# Current Progress and Gap Bridge: Bedroom to Autonomous Regional Dex Completion
+
+Last updated: 2026-08-17
+
+## Goal
+
+Build a long-running autonomous Pokémon White completion machine that can:
+
+1. Load the known save safely.
+2. Resume into the player bedroom without accidentally selecting New Game.
+3. Escape the house and reach the overworld route network.
+4. Understand the current map/location and player position.
+5. Read party/PC/save data to determine owned species.
+6. Choose a missing regional Pokémon target that is catchable in this game.
+7. Navigate to the target encounter area, using Fly when available and beneficial.
+8. Catch one physical body of each needed species, prioritizing the regional dex/living-dex policy.
+9. Recover safely when the game state is uncertain.
+
+The current save starts in the player's room in Nuvema Town. The immediate navigation goal is:
+
+```text
+Bedroom -> stairs -> downstairs -> exit house -> Nuvema Town -> route network
+```
+
+From there, the machine needs location awareness and route planning.
+
+## Current Known Good Capabilities
+
+### Emulator lifecycle
+
+We can launch BizHawk/melonDS with the Pokémon White ROM and Lua bridge.
+
+Verified pieces:
+
+- BizHawk launches through backend readiness.
+- Lua bridge connects on native port `8766`.
+- Backend health/readiness endpoints work.
+- BizHawk speed is forced/configured to `400%`.
+- SaveRAM is installed before launch.
+- Current configured save source and SaveRAM hashes matched during verification.
+
+Important save-safety note:
+
+- The code currently leaves the save path as configured.
+- The intended save data hash observed was:
+
+```text
+E7A706FEE023996987AEEA6FBE844A1101F1B8A00E87229B7A40C77D9765428D
+```
+
+### Input bridge
+
+Controller input is working.
+
+Known mappings:
+
+```text
+DS A       = keyboard X = confirm
+DS B       = keyboard Z = cancel
+DS X       = keyboard S = in-game menu
+DS Start   = keyboard Enter
+D-pad      = arrow keys
+```
+
+Observed working actions:
+
+- Start advances title/menu flow.
+- DS A confirms Continue.
+- D-pad Down selects C-Gear `NO`.
+- DS A confirms C-Gear prompts.
+- DS X opens the Gen 5 overworld menu.
+- Direction inputs move the player character.
+
+### Safe resume from title
+
+The title resume flow was hardened after a serious bug where the bot thought it was on the C-Gear prompt while actually still on the Continue menu. That caused:
+
+```text
+Down -> move selection from CONTINUE to NEW GAME
+A    -> select NEW GAME
+```
+
+This is now guarded against.
+
+Current safe flow:
+
+1. Wait through boot/title/cinematic screens.
+2. Press Start repeatedly until the real Continue menu is visually detected.
+3. Confirm Continue with DS A / keyboard X.
+4. Refuse to send C-Gear `Down + A` if still on Continue.
+5. On C-Gear prompt:
+
+```text
+Down
+wait
+DS A / keyboard X
+```
+
+6. Confirm restricted C-Gear warning with DS A.
+7. Verify final state with both visual and RAM evidence.
+
+Recent verified resume invariant:
+
+```text
+status: candidate-overworld
+visual_known_overworld: true
+ram_verified: true
+menu_open: false
+menu_value: 4
+```
+
+### Visual guards
+
+Current visual guards can distinguish several high-level states:
+
+- boot/logo/blank-ish screens;
+- real Continue menu with the blue save panel;
+- dark intro/cinematic screens that must not be accepted as overworld;
+- Gen 5 overworld-like frames with C-Gear lower screen.
+
+The Continue detector was tightened to detect the actual blue/gray save panel, not merely a bright title screen.
+
+### RAM-backed semantic scaffold
+
+A profile-backed RAM semantic-state system exists:
+
+```text
+data/emulator_memory_profiles/white_us_eu.json
+src/pokedex_completer_gen5/emulator/semantic_state.py
+GET /api/emulator/semantic-state
+```
+
+Current trusted/tentative field:
+
+```json
+menu_state at ARM9 System Bus 0x020A84BF
+```
+
+Validated contextual values:
+
+```text
+4 or 6 -> menu closed / overworld-ish context
+7      -> menu open
+```
+
+This is **not enough** to drive navigation. It only helps distinguish menu open/closed under known visual context.
+
+### RAM discovery tooling
+
+Existing tooling:
+
+- `scripts/ram_discovery_matrix.py`
+- `scripts/fast_ram_discovery.py`
+- `scripts/menu_ram_cycle.py`
+- `scripts/stable_ram_state_diff.py`
+- `scripts/action_ram_checkpoint_diff.py`
+- `scripts/paired_action_ram_diff.py`
+- `scripts/validate_action_candidates.py`
+
+Important fix made:
+
+The action diff tools originally saved timestamped checkpoint files but tried to reload by friendly checkpoint name. That meant scans drifted instead of restoring exact state. This was fixed so tools load the actual saved `.State` artifact path and require `ok: true` from load responses.
+
+Contamination warning:
+
+Any movement/RAM discovery outputs from before the fixed checkpoint-load logic, or before the title/Continue safety fixes, must be treated as contaminated unless rerun.
+
+## Current Weak Point
+
+Inputs move the character, but semantic tracking is not yet strong enough.
+
+We do **not yet** have reliable offsets for:
+
+```text
+current map id
+player X tile
+player Y tile
+facing direction
+movement/transition completion
+battle state
+encounter state
+```
+
+This is the main bridge gap.
+
+The bot can press buttons. What it cannot yet do reliably is know:
+
+```text
+Where am I?
+Did I finish moving?
+Which tile am I on?
+Which map/route am I on?
+Am I in battle?
+Am I in a menu/dialog/transition?
+```
+
+Without those semantics, autonomous navigation would be button-spam with screenshots taped to it. Funny, but garbage.
+
+## Immediate Bridge: Escape the Bedroom Reliably
+
+The current known starting location is the player bedroom.
+
+The first navigation bridge should be deliberately small:
+
+```text
+Goal: bedroom -> stairs -> downstairs
+```
+
+Then:
+
+```text
+downstairs -> house exit -> outside/Nuvema Town
+```
+
+### Why start here?
+
+The bedroom is a controlled environment:
+
+- known starting map visually;
+- small room;
+- few objects;
+- stairs provide a clear map transition;
+- no wild encounters;
+- safe to checkpoint and retry.
+
+### Required state signals for bedroom escape
+
+Minimum viable signals:
+
+1. Menu closed/open.
+2. Movement complete / player controllable.
+3. Map transition occurred.
+4. Visual confirmation of downstairs or outside.
+
+Ideal signals:
+
+1. Map id.
+2. X/Y tile position.
+3. Facing direction.
+4. Collision/blocked movement feedback.
+
+### Practical first macro
+
+A safe first version can be hybrid visual + RAM:
+
+```text
+checkpoint bedroom
+ensure menu closed
+execute short movement path toward stairs
+wait for transition
+verify screen changed to downstairs
+if not verified, reload checkpoint and try corrected path
+```
+
+This is not final autonomy, but it creates a bridge out of the spawn room.
+
+## RAM Discovery Plan
+
+### Phase 1: Movement completion / controllable state
+
+Find a stable byte/word that says:
+
+```text
+player is idle/control enabled
+player is walking/transitioning/control disabled
+```
+
+Method:
+
+1. Save checkpoint while idle in bedroom.
+2. Sample candidate addresses before action.
+3. Press `B` as control action.
+4. Press movement directions as experimental actions.
+5. Reject anything that changes on `B`.
+6. Repeat multiple cycles.
+7. Promote only stable candidates.
+
+Existing script:
+
+```text
+scripts/validate_action_candidates.py
+```
+
+Expected output ranking fields:
+
+```text
+baseline_stability
+movement_change_rate
+control_change_rate
+distinct_directional_after_modes
+```
+
+Good candidate shape:
+
+```text
+baseline_stability ~= 1.0
+movement_change_rate high
+control_change_rate == 0.0
+```
+
+Bad candidate shape:
+
+```text
+changes on B
+baseline drifts
+changes identically for every action including no-op/control
+```
+
+### Phase 2: Facing direction
+
+Use short taps that turn the player without moving a tile when possible.
+
+Method:
+
+```text
+load checkpoint
+press Up for tiny frame count
+wait short
+sample candidates
+repeat for Down/Left/Right
+```
+
+A facing field should:
+
+- not change on `B`;
+- have stable baseline;
+- map to one of four values after directional taps;
+- not require full tile movement.
+
+### Phase 3: X/Y tile position
+
+Once movement completion is known:
+
+1. Start from checkpoint.
+2. Perform one successful tile step.
+3. Wait until idle.
+4. Compare pre/post RAM.
+5. Repeat in directions where movement is not blocked.
+
+Good X/Y candidate shape:
+
+```text
+Up/Down changes Y-related value
+Left/Right changes X-related value
+opposite directions change in opposite signs or nearby values
+B does not change either
+baseline stable after checkpoint reload
+```
+
+### Phase 4: Map id
+
+Use known transitions:
+
+```text
+bedroom -> downstairs
+house -> Nuvema Town
+Nuvema Town -> Route 1
+```
+
+A map id candidate should:
+
+- remain stable during walking on the same map;
+- change after transition;
+- not change from menu open/close;
+- not change from facing-only taps.
+
+## Automation Plan: From Bedroom to Route
+
+### Step A: Current-safe resume
+
+Always begin with:
+
+```text
+ensure-ready
+resume-save-from-title
+verify candidate-overworld
+save checkpoint: known-room-start
+```
+
+Never continue if:
+
+- Continue menu still visible after A;
+- visual overworld guard fails;
+- RAM menu state is not closed/open-known;
+- bridge disconnected;
+- any C-Gear prompt is not visually/semantically expected.
+
+### Step B: Exit bedroom
+
+Build a supervised macro first:
+
+```text
+close menu if open
+walk to stairs
+wait for downstairs transition
+verify downstairs visually
+save checkpoint downstairs
+```
+
+This should be separate from general pathfinding. YAGNI: do not write a full navigation engine before proving one room transition.
+
+### Step C: Exit house
+
+From downstairs checkpoint:
+
+```text
+walk to door
+trigger exit
+verify outside/Nuvema Town
+save checkpoint outside-house
+```
+
+### Step D: Determine current route/location
+
+Preferred solution:
+
+```text
+RAM map_id + X/Y
+```
+
+Fallback during discovery:
+
+```text
+visual scene classifier + known transition graph
+```
+
+Once outside, begin building a small map graph:
+
+```text
+Nuvema Town
+Route 1
+Accumula Town
+Route 2
+Striaton City
+...
+```
+
+## Dex Completion Plan
+
+### Save/PC/party source of truth
+
+The project should not trust Pokédex flags as completion proof.
+
+Source of truth:
+
+```text
+physical Pokémon in PC boxes + party
+```
+
+Use save parsing/report commands to compute owned species inventory.
+
+Target policy:
+
+```text
+one physical body of each regional species available in Pokémon White
+```
+
+### Target selection
+
+For each missing species:
+
+1. Check if available in Pokémon White without trading/event-only requirements.
+2. Determine earliest/best catch locations.
+3. Consider encounter rate, season/time restrictions, required HMs, and story gating.
+4. Choose the highest priority target.
+
+Basic priority heuristic:
+
+```text
+available now > high encounter rate > nearby > low risk > unlocks future traversal/evolution utility
+```
+
+### Party utility checks
+
+Before route planning, inspect party for traversal moves:
+
+```text
+Fly
+Surf
+Strength
+Cut
+Waterfall
+```
+
+Current requested important case:
+
+```text
+Does a current party Pokémon know Fly?
+```
+
+If yes:
+
+1. Read known Fly destination flags/visited towns if possible.
+2. Use Fly as an edge in the travel graph.
+3. Choose shortest path to target route/location.
+
+If no:
+
+1. Use walking graph only.
+2. Consider whether obtaining/teaching Fly is itself a prerequisite task.
+
+### Navigation graph
+
+Represent travel as weighted edges:
+
+```text
+node: map/location
+edge: walking transition, gate, cave door, route connector, Fly destination
+cost: expected traversal time + encounter risk + required capabilities
+```
+
+Example:
+
+```text
+Nuvema Town -> Route 1: walk north
+Nuvema Town -> Player House: door transition
+Any outdoor map -> Fly destination: if Fly known + destination unlocked
+```
+
+### Catch execution loop
+
+For a chosen target:
+
+1. Navigate to encounter location.
+2. Walk encounter pattern in grass/cave/water.
+3. Detect battle start.
+4. Identify encountered species.
+5. If target species:
+   - weaken safely if needed;
+   - throw Poké Ball class based on inventory/strategy;
+   - verify caught;
+   - update owned inventory.
+6. If not target:
+   - run/KO safely;
+   - continue encounter loop.
+7. Check party/box capacity and healing/resource needs.
+
+## Recovery and Safety Rules
+
+The bot must checkpoint before risky clusters:
+
+```text
+before leaving known map
+before entering grass encounter loop
+before using limited resources
+before battle capture sequence
+before menu-heavy operations
+```
+
+Never continue if state is unknown and irreversible actions could happen.
+
+Hard stop cases:
+
+- Continue/New Game menu ambiguity.
+- Dialog/menu where selected item is unknown.
+- Low health and unknown battle state.
+- Save write or in-game save operation not explicitly approved.
+- Party full/PC full ambiguity.
+- Out of balls during capture loop.
+
+## Next Concrete Milestones
+
+### Milestone 1: Reliable bedroom escape macro
+
+Deliverable:
+
+```text
+POST /api/emulator/macro/escape-bedroom
+```
+
+Behavior:
+
+- assumes currently in verified bedroom overworld;
+- checkpoints before moving;
+- walks to stairs;
+- verifies downstairs visually/semantically;
+- returns `candidate-downstairs` or `needs-human`.
+
+### Milestone 2: Downstairs-to-outside macro
+
+Deliverable:
+
+```text
+POST /api/emulator/macro/exit-house
+```
+
+Behavior:
+
+- starts from downstairs;
+- walks to door;
+- verifies outside/Nuvema Town;
+- checkpoints outside.
+
+### Milestone 3: Movement state RAM field
+
+Deliverable:
+
+```json
+transition_state or movement_state in white_us_eu.json
+```
+
+Must be backed by repeated validation evidence.
+
+### Milestone 4: Map id discovery
+
+Deliverable:
+
+```json
+map_id in white_us_eu.json
+```
+
+Validated across:
+
+```text
+bedroom
+downstairs
+Nuvema Town
+Route 1
+```
+
+### Milestone 5: Player position/facing discovery
+
+Deliverable:
+
+```json
+player_x
+player_y
+facing
+```
+
+Validated by checkpointed movement cycles.
+
+### Milestone 6: Route graph and target planner
+
+Deliverable:
+
+```text
+location graph + target chooser
+```
+
+Inputs:
+
+- owned species from PC/party save parsing;
+- catchability database;
+- party HMs/moves, especially Fly;
+- current map/position.
+
+Output:
+
+```text
+next target species
+best catch location
+navigation plan
+required resources
+```
+
+## Current Status Summary
+
+We are no longer stuck at the title screen. We are safely loading into the save and can move the player in the bedroom.
+
+Current blocker:
+
+```text
+The bot can move, but does not yet have reliable map/X/Y/facing/movement-complete RAM semantics.
+```
+
+Immediate next task:
+
+```text
+Validate movement/position/facing candidates, then build the first bedroom escape macro.
+```
+
+Once bedroom escape works, we can chain:
+
+```text
+bedroom -> downstairs -> outside -> route identification -> target selection -> navigation -> encounter/catch loop
+```
+
+That is the bridge from today's emulator-control work to the actual regional Pokédex completer.
