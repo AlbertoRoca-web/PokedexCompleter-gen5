@@ -129,7 +129,7 @@ def _rank_candidates(
             movement_change_rate * 4.0
             + baseline_stability * 3.0
             + distinct_directional_after_modes * 0.5
-            - control_change_rate * 5.0
+            - control_change_rate * 12.0
         )
         rows.append(
             {
