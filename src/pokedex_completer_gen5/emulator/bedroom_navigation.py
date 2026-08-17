@@ -24,9 +24,9 @@ BEDROOM_GRID = [
     "#..........#",
     "#..####..###",
     "#..####....#",
-    "#..........#",
-    "S.........##",
-    "#.........##",
+    "#...###...#",
+    "S..###....##",
+    "..........##",
 ]
 
 
@@ -71,13 +71,15 @@ class BedroomNavigationDecision:
         }
 
 
-def decide_bedroom_next_action(image_path: Path) -> BedroomNavigationDecision:
+def decide_bedroom_next_action(
+    image_path: Path, *, blocked_tiles: set[tuple[int, int]] | None = None
+) -> BedroomNavigationDecision:
     player_pixel = detect_player_pixel(image_path)
     target = TilePoint(*STAIRS_TILE)
     if player_pixel is None:
         return BedroomNavigationDecision(None, None, target, [], None, "player sprite was not detected")
     player_tile = pixel_to_bedroom_tile(player_pixel)
-    path = astar_path(BEDROOM_GRID, player_tile.to_tuple(), target.to_tuple())
+    path = astar_path(BEDROOM_GRID, player_tile.to_tuple(), target.to_tuple(), blocked_tiles=blocked_tiles)
     if not path:
         return BedroomNavigationDecision(player_pixel, player_tile, target, [], None, "no A* path to bedroom target")
     if len(path) == 1:
@@ -129,8 +131,15 @@ def pixel_to_bedroom_tile(pixel: PixelPoint) -> TilePoint:
     return TilePoint(_clamp(tile_x, 0, max_x), _clamp(tile_y, 0, max_y))
 
 
-def astar_path(grid: list[str], start: tuple[int, int], goal: tuple[int, int]) -> list[tuple[int, int]]:
-    if not _is_walkable(grid, start) or not _is_walkable(grid, goal):
+def astar_path(
+    grid: list[str],
+    start: tuple[int, int],
+    goal: tuple[int, int],
+    *,
+    blocked_tiles: set[tuple[int, int]] | None = None,
+) -> list[tuple[int, int]]:
+    blocked = blocked_tiles or set()
+    if not _is_walkable(grid, start, blocked_tiles=blocked) or not _is_walkable(grid, goal, blocked_tiles=blocked):
         return []
     frontier: list[tuple[int, tuple[int, int]]] = []
     heappush(frontier, (0, start))
@@ -140,7 +149,7 @@ def astar_path(grid: list[str], start: tuple[int, int], goal: tuple[int, int]) -
         _priority, current = heappop(frontier)
         if current == goal:
             return _reconstruct_path(came_from, current)
-        for next_tile in _neighbors(grid, current):
+        for next_tile in _neighbors(grid, current, blocked_tiles=blocked):
             new_cost = cost_so_far[current] + 1
             if next_tile in cost_so_far and new_cost >= cost_so_far[next_tile]:
                 continue
@@ -192,15 +201,33 @@ def _connected_components(mask: set[tuple[int, int]]) -> list[list[tuple[int, in
     return components
 
 
-def _neighbors(grid: list[str], tile: tuple[int, int]) -> list[tuple[int, int]]:
+def tile_after_action(tile: TilePoint | tuple[int, int], action: Direction) -> tuple[int, int]:
+    x, y = tile.to_tuple() if isinstance(tile, TilePoint) else tile
+    if action == "Up":
+        return (x, y - 1)
+    if action == "Down":
+        return (x, y + 1)
+    if action == "Left":
+        return (x - 1, y)
+    if action == "Right":
+        return (x + 1, y)
+    raise ValueError(f"Unsupported movement action: {action}")
+
+
+def _neighbors(
+    grid: list[str], tile: tuple[int, int], *, blocked_tiles: set[tuple[int, int]]
+) -> list[tuple[int, int]]:
     x, y = tile
     candidates = [(x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y)]
-    return [candidate for candidate in candidates if _is_walkable(grid, candidate)]
+    return [candidate for candidate in candidates if _is_walkable(grid, candidate, blocked_tiles=blocked_tiles)]
 
 
-def _is_walkable(grid: list[str], tile: tuple[int, int]) -> bool:
+def _is_walkable(
+    grid: list[str], tile: tuple[int, int], *, blocked_tiles: set[tuple[int, int]] | None = None
+) -> bool:
     x, y = tile
-    return 0 <= y < len(grid) and 0 <= x < len(grid[y]) and grid[y][x] in {".", "S"}
+    blocked = blocked_tiles or set()
+    return 0 <= y < len(grid) and 0 <= x < len(grid[y]) and tile not in blocked and grid[y][x] in {".", "S"}
 
 
 def _reconstruct_path(

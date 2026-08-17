@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from pokedex_completer_gen5.emulator.bedroom_navigation import decide_bedroom_next_action
+from pokedex_completer_gen5.emulator.bedroom_navigation import TilePoint, decide_bedroom_next_action, tile_after_action
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / ".runtime" / "continuous-play"
@@ -68,16 +68,37 @@ def _run(
             return _finish(False, run_id, output_path, events, "ensure-ready-failed")
 
     record("checkpoint-start", _post(client, "/api/emulator/checkpoint/save", {"name": f"{run_id}-start"}))
+    blocked_tiles: set[tuple[int, int]] = set()
+    last_tile: TilePoint | None = None
+    last_action: str | None = None
     for step in range(1, max_steps + 1):
         screenshot = _get(client, "/api/emulator/screenshot")
         screenshot_path = screenshot.get("artifact_path") or screenshot.get("path")
         if not isinstance(screenshot_path, str):
             record("observe-failed", {"step": step, "screenshot": screenshot})
             return _finish(False, run_id, output_path, events, "screenshot-missing", step - 1)
-        decision = decide_bedroom_next_action(Path(screenshot_path))
-        record("decision", {"step": step, "screenshot": screenshot, "decision": decision.to_dict()})
+        decision = decide_bedroom_next_action(Path(screenshot_path), blocked_tiles=blocked_tiles)
+        if last_tile is not None and last_action is not None and decision.player_tile == last_tile:
+            blocked_tile = tile_after_action(last_tile, last_action)
+            blocked_tiles.add(blocked_tile)
+            record(
+                "blocked-tile-learned",
+                {"step": step, "from_tile": last_tile.to_dict(), "action": last_action, "blocked_tile": blocked_tile},
+            )
+            decision = decide_bedroom_next_action(Path(screenshot_path), blocked_tiles=blocked_tiles)
+        record(
+            "decision",
+            {
+                "step": step,
+                "screenshot": screenshot,
+                "blocked_tiles": sorted(blocked_tiles),
+                "decision": decision.to_dict(),
+            },
+        )
         if decision.next_action is None:
             return _finish(True, run_id, output_path, events, decision.reason, step - 1)
+        last_tile = decision.player_tile
+        last_action = decision.next_action
         press = _post(client, "/api/emulator/press", {"button": decision.next_action, "frames": movement_press_frames})
         advance = _post(client, "/api/emulator/frame-advance", {"frames": settle_frames})
         record(

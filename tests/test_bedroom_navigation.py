@@ -12,6 +12,7 @@ from pokedex_completer_gen5.emulator.bedroom_navigation import (
     decide_bedroom_next_action,
     detect_player_pixel,
     pixel_to_bedroom_tile,
+    tile_after_action,
 )
 
 
@@ -25,6 +26,17 @@ def test_astar_path_routes_to_stairs() -> None:
     assert path[0] == (6, 6)
     assert path[-1] == (0, 6)
     assert len(path) > 1
+
+
+def test_tile_after_action_returns_attempted_neighbor() -> None:
+    assert tile_after_action(TilePoint(6, 6), "Left") == (5, 6)
+    assert tile_after_action((6, 6), "Down") == (6, 7)
+
+
+def test_astar_path_respects_dynamic_blocked_tiles() -> None:
+    path = astar_path(BEDROOM_GRID, (6, 7), (0, 6), blocked_tiles={(5, 7)})
+
+    assert (5, 7) not in path
 
 
 def test_detect_player_pixel_from_synthetic_sprite(tmp_path: Path) -> None:
@@ -49,4 +61,4 @@ def test_decide_bedroom_next_action_from_synthetic_sprite(tmp_path: Path) -> Non
     decision = decide_bedroom_next_action(path)
 
     assert decision.player_tile == TilePoint(6, 6)
-    assert decision.next_action == "Left"
+    assert decision.next_action == "Down"
