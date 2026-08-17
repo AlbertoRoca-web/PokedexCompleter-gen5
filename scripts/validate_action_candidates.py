@@ -285,7 +285,21 @@ def _summary(payload: dict[str, Any], output_path: Path) -> dict[str, Any]:
         "actions": payload["actions"],
         "control_action": payload["control_action"],
         "cycles": payload["cycles"],
-        "top_candidates": payload["ranked_candidates"][:30],
+        "top_candidates": [_candidate_summary(row) for row in payload["ranked_candidates"][:30]],
+    }
+
+
+def _candidate_summary(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "hex_address": row["hex_address"],
+        "score": row["score"],
+        "baseline_stability": row["baseline_stability"],
+        "movement_change_rate": row["movement_change_rate"],
+        "control_change_rate": row["control_change_rate"],
+        "movement_specific_change_rate": row["movement_specific_change_rate"],
+        "distinct_directional_after_modes": row["distinct_directional_after_modes"],
+        "action_modes_different_from_control": row["action_modes_different_from_control"],
+        "action_after_modes": row["action_after_modes"],
     }
 
 

@@ -88,6 +88,36 @@ def test_perform_action_button_presses_then_advances() -> None:
     ]
 
 
+def test_candidate_summary_omits_verbose_observation_values() -> None:
+    summary = validate_action_candidates._candidate_summary(
+        {
+            "hex_address": "0x20",
+            "score": 9.0,
+            "baseline_stability": 1.0,
+            "movement_change_rate": 0.5,
+            "control_change_rate": 0.0,
+            "movement_specific_change_rate": 0.5,
+            "distinct_directional_after_modes": 2,
+            "action_modes_different_from_control": 2,
+            "action_after_modes": {"Wait": 1, "Up": 2},
+            "before_by_action": {"Wait": [1, 1], "Up": [1, 1]},
+            "after_by_action": {"Wait": [1, 1], "Up": [2, 2]},
+        }
+    )
+
+    assert summary == {
+        "hex_address": "0x20",
+        "score": 9.0,
+        "baseline_stability": 1.0,
+        "movement_change_rate": 0.5,
+        "control_change_rate": 0.0,
+        "movement_specific_change_rate": 0.5,
+        "distinct_directional_after_modes": 2,
+        "action_modes_different_from_control": 2,
+        "action_after_modes": {"Wait": 1, "Up": 2},
+    }
+
+
 def test_read_addresses_batches_nearby_addresses() -> None:
     client = _FakeClient()
 
