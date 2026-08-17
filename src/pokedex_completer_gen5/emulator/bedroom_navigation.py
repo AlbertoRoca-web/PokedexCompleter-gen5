@@ -72,9 +72,12 @@ class BedroomNavigationDecision:
 
 
 def decide_bedroom_next_action(
-    image_path: Path, *, blocked_tiles: set[tuple[int, int]] | None = None
+    image_path: Path,
+    *,
+    blocked_tiles: set[tuple[int, int]] | None = None,
+    expected_tile: TilePoint | tuple[int, int] | None = None,
 ) -> BedroomNavigationDecision:
-    player_pixel = detect_player_pixel(image_path)
+    player_pixel = detect_player_pixel(image_path, expected_tile=expected_tile)
     target = TilePoint(*STAIRS_TILE)
     if player_pixel is None:
         return BedroomNavigationDecision(None, None, target, [], None, "player sprite was not detected")
@@ -97,7 +100,9 @@ def decide_bedroom_next_action(
     )
 
 
-def detect_player_pixel(image_path: Path) -> PixelPoint | None:
+def detect_player_pixel(
+    image_path: Path, *, expected_tile: TilePoint | tuple[int, int] | None = None
+) -> PixelPoint | None:
     with Image.open(image_path) as raw_image:
         image = raw_image.convert("RGB")
         width, height = image.size
@@ -119,8 +124,20 @@ def detect_player_pixel(image_path: Path) -> PixelPoint | None:
         candidates.append((y2, len(component), x1, x2, y1, y2))
     if not candidates:
         return None
+    if expected_tile is not None:
+        expected_pixel = bedroom_tile_to_pixel(expected_tile)
+        _score, _bottom, _size, x1, x2, _y1, y2 = min(
+            (_pixel_distance_squared(PixelPoint((x1 + x2) // 2, y2), expected_pixel), y2, size, x1, x2, y1, y2)
+            for y2, size, x1, x2, y1, _component_bottom in candidates
+        )
+        return PixelPoint((x1 + x2) // 2, y2)
     _bottom, _size, x1, x2, _y1, y2 = max(candidates)
     return PixelPoint((x1 + x2) // 2, y2)
+
+
+def bedroom_tile_to_pixel(tile: TilePoint | tuple[int, int]) -> PixelPoint:
+    x, y = tile.to_tuple() if isinstance(tile, TilePoint) else tile
+    return PixelPoint(TILE_ORIGIN_X + x * TILE_SIZE, TILE_ORIGIN_Y + y * TILE_SIZE)
 
 
 def pixel_to_bedroom_tile(pixel: PixelPoint) -> TilePoint:
@@ -260,6 +277,10 @@ def _direction_between(start: tuple[int, int], end: tuple[int, int]) -> Directio
 
 def _manhattan(a: tuple[int, int], b: tuple[int, int]) -> int:
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+
+def _pixel_distance_squared(a: PixelPoint, b: PixelPoint) -> int:
+    return (a.x - b.x) ** 2 + (a.y - b.y) ** 2
 
 
 def _clamp(value: int, minimum: int, maximum: int) -> int:

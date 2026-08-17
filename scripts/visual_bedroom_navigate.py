@@ -77,7 +77,9 @@ def _run(
         if not isinstance(screenshot_path, str):
             record("observe-failed", {"step": step, "screenshot": screenshot})
             return _finish(False, run_id, output_path, events, "screenshot-missing", step - 1)
-        decision = decide_bedroom_next_action(Path(screenshot_path), blocked_tiles=blocked_tiles)
+        decision = decide_bedroom_next_action(
+            Path(screenshot_path), blocked_tiles=blocked_tiles, expected_tile=last_tile
+        )
         if last_tile is not None and last_action is not None and decision.player_tile == last_tile:
             blocked_tile = tile_after_action(last_tile, last_action)
             blocked_tiles.add(blocked_tile)
@@ -85,7 +87,9 @@ def _run(
                 "blocked-tile-learned",
                 {"step": step, "from_tile": last_tile.to_dict(), "action": last_action, "blocked_tile": blocked_tile},
             )
-            decision = decide_bedroom_next_action(Path(screenshot_path), blocked_tiles=blocked_tiles)
+            decision = decide_bedroom_next_action(
+                Path(screenshot_path), blocked_tiles=blocked_tiles, expected_tile=last_tile
+            )
         record(
             "decision",
             {

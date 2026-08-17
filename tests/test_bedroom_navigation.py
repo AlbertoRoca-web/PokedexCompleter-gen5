@@ -9,6 +9,7 @@ from pokedex_completer_gen5.emulator.bedroom_navigation import (
     PixelPoint,
     TilePoint,
     astar_path,
+    bedroom_tile_to_pixel,
     decide_bedroom_next_action,
     detect_player_pixel,
     pixel_to_bedroom_tile,
@@ -18,6 +19,10 @@ from pokedex_completer_gen5.emulator.bedroom_navigation import (
 
 def test_pixel_to_bedroom_tile_uses_calibrated_grid() -> None:
     assert pixel_to_bedroom_tile(PixelPoint(120, 137)) == TilePoint(6, 6)
+
+
+def test_bedroom_tile_to_pixel_uses_calibrated_grid() -> None:
+    assert bedroom_tile_to_pixel(TilePoint(6, 6)) == PixelPoint(120, 136)
 
 
 def test_astar_path_routes_to_stairs() -> None:
@@ -48,6 +53,18 @@ def test_detect_player_pixel_from_synthetic_sprite(tmp_path: Path) -> None:
     image.save(path)
 
     assert detect_player_pixel(path) == PixelPoint(120, 138)
+
+
+def test_detect_player_pixel_prefers_expected_tile_over_distractor(tmp_path: Path) -> None:
+    path = tmp_path / "sprite-with-distractor.png"
+    image = Image.new("RGB", (256, 384), (239, 207, 150))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((111, 120, 130, 138), fill=(60, 44, 60))
+    draw.rectangle((116, 116, 125, 124), fill=(239, 109, 109))
+    draw.rectangle((26, 105, 43, 116), fill=(60, 44, 60))
+    image.save(path)
+
+    assert detect_player_pixel(path, expected_tile=TilePoint(6, 6)) == PixelPoint(120, 138)
 
 
 def test_decide_bedroom_next_action_from_synthetic_sprite(tmp_path: Path) -> None:
