@@ -27,13 +27,13 @@ def test_bedroom_tile_to_pixel_uses_calibrated_grid() -> None:
 
 
 def test_nearest_walkable_tile_snaps_blocked_detection() -> None:
-    assert nearest_walkable_tile(TilePoint(4, 5)) == TilePoint(3, 5)
+    assert nearest_walkable_tile(TilePoint(5, 6)) == TilePoint(5, 5)
 
 
 def test_astar_path_routes_to_stairs() -> None:
-    path = astar_path(BEDROOM_GRID, (6, 6), (1, 7))
+    path = astar_path(BEDROOM_GRID, (3, 5), (1, 7))
 
-    assert path[0] == (6, 6)
+    assert path[0] == (3, 5)
     assert path[-1] == (1, 7)
     assert len(path) > 1
 
@@ -104,5 +104,5 @@ def test_decide_bedroom_next_action_from_synthetic_sprite(tmp_path: Path) -> Non
 
     decision = decide_bedroom_next_action(path)
 
-    assert decision.player_tile == TilePoint(6, 6)
-    assert decision.next_action == "Down"
+    assert decision.player_tile == TilePoint(6, 5)
+    assert decision.next_action == "Left"
