@@ -108,6 +108,7 @@ def detect_player_pixel(
         image = raw_image.convert("RGB")
         width, height = image.size
         top_height = min(192, height)
+        top_image = image.crop((0, 0, width, top_height))
         mask = _sprite_mask(image, width=width, height=top_height)
     components = _connected_components(mask)
     candidates = []
@@ -142,7 +143,11 @@ def detect_player_pixel(
             )
             for y2, size, x1, x2, y1, _component_bottom in candidates
         )
-        return PixelPoint(_clamp(expected_pixel.x, x1, x2), y2)
+        broad_pixel = PixelPoint(_clamp(expected_pixel.x, x1, x2), y2)
+        if _pixel_distance_squared(broad_pixel, expected_pixel) <= 1600:
+            return broad_pixel
+        cap_pixel = _detect_player_cap_anchor(top_image, expected_tile)
+        return cap_pixel or broad_pixel
     _bottom, _size, x1, x2, _y1, y2 = max(candidates)
     return PixelPoint((x1 + x2) // 2, y2)
 
@@ -209,6 +214,46 @@ def astar_path(
             heappush(frontier, (priority, next_tile))
             came_from[next_tile] = current
     return []
+
+
+def _detect_player_cap_anchor(image: Image.Image, expected_tile: TilePoint | tuple[int, int]) -> PixelPoint | None:
+    expected_pixel = bedroom_tile_to_pixel(expected_tile)
+    expected_cap = PixelPoint(expected_pixel.x, expected_pixel.y - 36)
+    components = _cap_components(image)
+    if not components:
+        return None
+    area, min_x, _min_y, max_x, max_y = min(
+        components,
+        key=lambda component: _pixel_distance_squared(
+            PixelPoint((component[1] + component[3]) // 2, component[4]), expected_cap
+        ),
+    )
+    if area < 8:
+        return None
+    return PixelPoint((min_x + max_x) // 2, max_y + 36)
+
+
+def _cap_components(image: Image.Image) -> list[tuple[int, int, int, int, int]]:
+    mask: set[tuple[int, int]] = set()
+    for y in range(70, image.height):
+        for x in range(image.width):
+            r, g, b = cast(tuple[int, int, int], image.getpixel((x, y)))
+            red_hat = r >= 170 and g <= 150 and b <= 170
+            white_cap = r >= 185 and g >= 185 and b >= 210
+            if red_hat or white_cap:
+                mask.add((x, y))
+    components: list[tuple[int, int, int, int, int]] = []
+    for component in _connected_components(mask):
+        xs = [x for x, _y in component]
+        ys = [y for _x, y in component]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        area = len(component)
+        width = max_x - min_x + 1
+        height = max_y - min_y + 1
+        if 8 <= area <= 90 and 4 <= width <= 24 and 3 <= height <= 18:
+            components.append((area, min_x, min_y, max_x, max_y))
+    return components
 
 
 def _sprite_mask(image: Image.Image, *, width: int, height: int) -> set[tuple[int, int]]:

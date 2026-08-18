@@ -71,6 +71,17 @@ def test_detect_player_pixel_handles_white_cap_back_sprite(tmp_path: Path) -> No
     assert detect_player_pixel(path, expected_tile=TilePoint(9, 5)) == PixelPoint(168, 132)
 
 
+def test_detect_player_pixel_uses_expected_tile_cap_anchor_in_clutter(tmp_path: Path) -> None:
+    path = tmp_path / "sprite-in-clutter.png"
+    image = Image.new("RGB", (256, 384), (239, 207, 150))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((40, 130, 110, 180), fill=(60, 44, 60))
+    draw.rectangle((70, 74, 79, 79), fill=(239, 109, 109))
+    image.save(path)
+
+    assert detect_player_pixel(path, expected_tile=TilePoint(1, 4)) == PixelPoint(74, 115)
+
+
 def test_detect_player_pixel_prefers_expected_tile_over_distractor(tmp_path: Path) -> None:
     path = tmp_path / "sprite-with-distractor.png"
     image = Image.new("RGB", (256, 384), (239, 207, 150))
