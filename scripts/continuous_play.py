@@ -9,6 +9,8 @@ from typing import Any
 
 import httpx
 
+from pokedex_completer_gen5.emulator.bedroom_navigation import decide_bedroom_next_action
+
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / ".runtime" / "continuous-play"
 DEFAULT_BASE_URL = "http://127.0.0.1:8787"
@@ -37,6 +39,7 @@ def main() -> int:
     parser.add_argument("--resume-title", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--ensure-ready", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--stop-if-title-resume-fails", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--visual-bedroom-exit", action=argparse.BooleanOptionalAction, default=False)
     args = parser.parse_args()
 
     actions = _action_plan(args.actions, args.preset)
@@ -58,6 +61,7 @@ def main() -> int:
         resume_title=args.resume_title,
         ensure_ready=args.ensure_ready,
         stop_if_title_resume_fails=args.stop_if_title_resume_fails,
+        visual_bedroom_exit=args.visual_bedroom_exit,
     )
     print(json.dumps(result, indent=2))
     return 0 if result["ok"] else 1
@@ -78,6 +82,7 @@ def _run(
     resume_title: bool,
     ensure_ready: bool,
     stop_if_title_resume_fails: bool,
+    visual_bedroom_exit: bool,
 ) -> dict[str, Any]:
     started = time.monotonic()
     run_id = datetime.now(UTC).strftime("continuous-%Y%m%dT%H%M%SZ")
@@ -112,6 +117,23 @@ def _run(
         if time.monotonic() - started >= max_seconds:
             return _finish(True, run_id, output_path, events, "stopped-time-budget", completed_steps)
         action = actions[(step - 1) % len(actions)]
+        if visual_bedroom_exit:
+            visual_observation = _observe(client)
+            screenshot_path = _screenshot_path(visual_observation)
+            if screenshot_path is None:
+                record(
+                    "visual-bedroom-decision",
+                    {"ok": False, "reason": "missing-screenshot", "observation": visual_observation},
+                )
+                return _finish(False, run_id, output_path, events, "visual-bedroom-missing-screenshot", completed_steps)
+            decision = decide_bedroom_next_action(Path(screenshot_path)).to_dict()
+            record("visual-bedroom-decision", decision)
+            if decision.get("reason") == "already at target tile":
+                return _finish(True, run_id, output_path, events, "bedroom-target-reached", completed_steps)
+            next_action = decision.get("next_action")
+            if not isinstance(next_action, str):
+                return _finish(False, run_id, output_path, events, "visual-bedroom-no-action", completed_steps)
+            action = next_action
         _close_menu_if_known_open(client, record)
         press_frames = movement_press_frames if action in MOVEMENT_BUTTONS else button_press_frames
         press = _post(client, "/api/emulator/press", {"button": action, "frames": press_frames})
@@ -151,6 +173,14 @@ def _observe(client: httpx.Client) -> dict[str, Any]:
         "semantic": _get(client, "/api/emulator/semantic-state"),
         "screenshot": _get(client, "/api/emulator/screenshot"),
     }
+
+
+def _screenshot_path(observation: dict[str, Any]) -> str | None:
+    screenshot = observation.get("screenshot")
+    if not isinstance(screenshot, dict):
+        return None
+    path = screenshot.get("artifact_path") or screenshot.get("path")
+    return path if isinstance(path, str) and path else None
 
 
 def _resume_payload() -> dict[str, int]:

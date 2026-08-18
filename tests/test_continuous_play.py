@@ -33,6 +33,18 @@ def test_action_plan_rejects_unknown_actions() -> None:
         raise AssertionError("Expected ValueError")
 
 
+def test_screenshot_path_prefers_artifact_path() -> None:
+    assert continuous_play._screenshot_path({"screenshot": {"artifact_path": "a.png", "path": "b.png"}}) == "a.png"
+
+
+def test_screenshot_path_falls_back_to_path() -> None:
+    assert continuous_play._screenshot_path({"screenshot": {"path": "b.png"}}) == "b.png"
+
+
+def test_screenshot_path_returns_none_when_missing() -> None:
+    assert continuous_play._screenshot_path({"screenshot": {}}) is None
+
+
 def test_finish_reports_jsonl_path() -> None:
     result = continuous_play._finish(
         True,
