@@ -1,20 +1,17 @@
 # Roadmap
 
-## Phase 0 — migrate prototype
+## Phase 0 — repository foundation
 
-Source prototype:
+This GitHub repository is the sole code and documentation source of truth. There is no external prototype dependency.
 
-```text
-D:\alroc\codepup\Scripts\regional-pokedex-completer
-```
+Completed foundation:
 
-Tasks:
-
-- move code into `src/pokedex_completer_gen5/`;
-- add CLI entry points;
-- add tests;
-- add JSON report output; initial `--format json` implemented;
-- keep prototype behavior read-only.
+- package code under `src/pokedex_completer_gen5/`;
+- CLI entry points;
+- automated tests and GitHub Actions CI;
+- JSON report output;
+- read-only save inspection defaults;
+- emulator bridge and generalized gameplay-agent scaffolding.
 
 ## Phase 1 — stable Gen 5 save extraction
 

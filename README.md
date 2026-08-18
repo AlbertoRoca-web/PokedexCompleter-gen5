@@ -51,23 +51,22 @@ Pokemon Gen 5 game
 
 ## Immediate status
 
-A prototype exists outside this repo under:
+This GitHub repository is the sole project and source of truth. Runtime artifacts such as screenshots, checkpoints, saves, ROMs, and local secrets remain ignored, but all application code, schemas, tests, workflows, and documentation belong here.
 
-```text
-D:\alroc\codepup\Scripts\regional-pokedex-completer
-```
-
-That prototype already has:
+Implemented in this repository:
 
 - read-only PK5 decoding;
 - party + PC extraction for observed Gen 5 saves;
-- BW Unova living dex planner prototype;
-- physical PC/party inventory extraction;
-- catchable-target report path;
-- breeding shortcut logic;
-- game profile guardrails so B2W2 does not silently use BW dex data.
+- BW Unova Living Dex planning and physical inventory reports;
+- catchable-target report paths and breeding shortcut logic;
+- game-profile guardrails so B2W2 does not silently use BW dex data;
+- BizHawk/melonDS lifecycle, input, screenshot, memory, and checkpoint bridge;
+- generalized closed-loop gameplay agent interfaces;
+- live HTTP gameplay environment;
+- image-capable planner provider boundary;
+- GitHub Actions CI for linting, type checks, and tests.
 
-Next step is migrating that prototype into this repo as a proper package.
+There is no required external prototype directory to migrate or maintain.
 
 ## Safety rules
 
