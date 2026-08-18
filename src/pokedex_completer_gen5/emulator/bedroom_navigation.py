@@ -13,20 +13,22 @@ Direction = str
 TILE_SIZE = 16
 TILE_ORIGIN_X = 24
 TILE_ORIGIN_Y = 40
-STAIRS_TILE = (1, 7)
+STAIRS_TILE = (11, 4)
 
 # Conservative first-pass grid for the visible bedroom. This is not the whole game.
 # Keep it boring: enough structure to route around bed/table/furniture from screenshots.
-# . walkable, # blocked, S target/stairs approach tile near lower-left cyan stair graphic.
+# . walkable, # blocked, S staging tile by the top-right stairwell.
+# The rug is walkable. The Wii/TV/table cluster is blocked. The final stair trigger
+# from S is Up once, then Right once.
 BEDROOM_GRID = [
-    "############",
-    "#....###...#",
-    "#..........#",
-    "#..........#",
-    "#..........#",
-    "#..........#",
-    "#....##..###",
-    ".S...##...##",
+    "##############",
+    "#....###.....#",
+    "#....###.....#",
+    "#....###.....#",
+    "#....###...S.#",
+    "#............#",
+    "#....##....###",
+    "#....##....###",
 ]
 
 
