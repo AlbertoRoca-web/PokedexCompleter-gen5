@@ -40,6 +40,7 @@ def main() -> int:
     parser.add_argument("--ensure-ready", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--stop-if-title-resume-fails", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--visual-bedroom-exit", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--initial-bedroom-tile", nargs=2, type=int, metavar=("X", "Y"))
     args = parser.parse_args()
 
     actions = _action_plan(args.actions, args.preset)
@@ -62,6 +63,7 @@ def main() -> int:
         ensure_ready=args.ensure_ready,
         stop_if_title_resume_fails=args.stop_if_title_resume_fails,
         visual_bedroom_exit=args.visual_bedroom_exit,
+        initial_bedroom_tile=TilePoint(*args.initial_bedroom_tile) if args.initial_bedroom_tile else None,
     )
     print(json.dumps(result, indent=2))
     return 0 if result["ok"] else 1
@@ -83,6 +85,7 @@ def _run(
     ensure_ready: bool,
     stop_if_title_resume_fails: bool,
     visual_bedroom_exit: bool,
+    initial_bedroom_tile: TilePoint | None,
 ) -> dict[str, Any]:
     started = time.monotonic()
     run_id = datetime.now(UTC).strftime("continuous-%Y%m%dT%H%M%SZ")
@@ -113,7 +116,7 @@ def _run(
     record("checkpoint-start", start_checkpoint)
 
     completed_steps = 0
-    expected_bedroom_tile: TilePoint | None = None
+    expected_bedroom_tile = initial_bedroom_tile
     for step in range(1, max_steps + 1):
         if time.monotonic() - started >= max_seconds:
             return _finish(True, run_id, output_path, events, "stopped-time-budget", completed_steps)
