@@ -31,10 +31,10 @@ def test_nearest_walkable_tile_snaps_blocked_detection() -> None:
 
 
 def test_astar_path_routes_to_stairs() -> None:
-    path = astar_path(BEDROOM_GRID, (3, 5), (11, 4))
+    path = astar_path(BEDROOM_GRID, (3, 5), (10, 5))
 
     assert path[0] == (3, 5)
-    assert path[-1] == (11, 4)
+    assert path[-1] == (10, 5)
     assert len(path) > 1
 
 
@@ -44,7 +44,7 @@ def test_tile_after_action_returns_attempted_neighbor() -> None:
 
 
 def test_astar_path_respects_dynamic_blocked_tiles() -> None:
-    path = astar_path(BEDROOM_GRID, (6, 7), (11, 4), blocked_tiles={(5, 7)})
+    path = astar_path(BEDROOM_GRID, (6, 7), (10, 5), blocked_tiles={(5, 7)})
 
     assert (5, 7) not in path
 

@@ -13,20 +13,20 @@ Direction = str
 TILE_SIZE = 16
 TILE_ORIGIN_X = 24
 TILE_ORIGIN_Y = 40
-STAIRS_TILE = (11, 4)
+STAIRS_TILE = (10, 5)
 
 # Conservative first-pass grid for the visible bedroom. This is not the whole game.
 # Keep it boring: enough structure to route around bed/table/furniture from screenshots.
 # . walkable, # blocked, S staging tile by the top-right stairwell.
 # The rug is walkable. The Wii/TV/table cluster is blocked. The final stair trigger
-# from S is Up once, then Right once.
+# from S is Up, Up, then Right.
 BEDROOM_GRID = [
     "##############",
     "#....###.....#",
     "#....###.....#",
     "#....###.....#",
-    "#....###...S.#",
-    "#............#",
+    "#....###.....#",
+    "#.........S..#",
     "#....##....###",
     "#....##....###",
 ]
@@ -146,7 +146,7 @@ def detect_player_pixel(
             for y2, size, x1, x2, y1, _component_bottom in candidates
         )
         broad_pixel = PixelPoint(_clamp(expected_pixel.x, x1, x2), y2)
-        if _pixel_distance_squared(broad_pixel, expected_pixel) <= 1600:
+        if _pixel_distance_squared(broad_pixel, expected_pixel) <= 900:
             return broad_pixel
         cap_pixel = _detect_player_cap_anchor(top_image, expected_tile)
         return cap_pixel or broad_pixel
