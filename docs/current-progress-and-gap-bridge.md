@@ -16,7 +16,29 @@ Build a long-running autonomous Pokémon White completion machine that can:
 8. Catch one physical body of each needed species, prioritizing the regional dex/living-dex policy.
 9. Recover safely when the game state is uncertain.
 
-The current save starts in the player's room in Nuvema Town. The immediate navigation goal is:
+Current objective order, explicitly confirmed:
+
+```text
+1. Escape bedroom -> downstairs -> front door -> outside.
+2. Re-read party + PC as the physical Living Dex source of truth.
+3. Catch one of every wild-catchable species available in Pokemon White.
+4. Check whether any party Pokemon knows Fly.
+5. If not, teach Fly to a compatible owned Pokemon when possible.
+6. If no compatible party Pokemon exists, inspect the nearest Pokemon Center PC.
+7. If no compatible owned Pokemon exists, prioritize a nearby catchable flying/Fly-compatible species.
+8. Use Fly-aware route planning for remaining wild catches.
+9. Fill non-wild and missing evolution stages through evolution and breeding workflows.
+```
+
+The primary architecture must be generalized closed-loop gameplay:
+
+```text
+observe screenshot/state -> plan bounded actions -> execute one input -> re-observe -> correct
+```
+
+Room-specific grids and macros are optional learned/cache data, not the core agent. The agent must not blindly replay long input sequences when screenshots show lag, blocking, or overshoot.
+
+The current save starts in the player's room in Nuvema Town.
 
 ```text
 Bedroom -> stairs -> downstairs -> exit house -> Nuvema Town -> route network
