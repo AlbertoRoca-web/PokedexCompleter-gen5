@@ -117,6 +117,9 @@ def _run(
 
     completed_steps = 0
     expected_bedroom_tile = initial_bedroom_tile
+    blocked_bedroom_tiles: set[tuple[int, int]] = set()
+    last_bedroom_tile: tuple[int, int] | None = None
+    last_bedroom_action: str | None = None
     for step in range(1, max_steps + 1):
         if time.monotonic() - started >= max_seconds:
             return _finish(True, run_id, output_path, events, "stopped-time-budget", completed_steps)
@@ -132,9 +135,28 @@ def _run(
                 return _finish(False, run_id, output_path, events, "visual-bedroom-missing-screenshot", completed_steps)
             decision = decide_bedroom_next_action(
                 Path(screenshot_path),
+                blocked_tiles=blocked_bedroom_tiles,
                 expected_tile=expected_bedroom_tile,
             ).to_dict()
-            record("visual-bedroom-decision", decision)
+            current_tile = _tile_tuple(decision.get("player_tile"))
+            if (
+                current_tile is not None
+                and last_bedroom_tile is not None
+                and current_tile == last_bedroom_tile
+                and last_bedroom_action is not None
+            ):
+                blocked_tile = tile_after_action(last_bedroom_tile, last_bedroom_action)
+                blocked_bedroom_tiles.add(blocked_tile)
+                record(
+                    "visual-bedroom-blocked-tile",
+                    {"from_tile": last_bedroom_tile, "action": last_bedroom_action, "blocked_tile": blocked_tile},
+                )
+                decision = decide_bedroom_next_action(
+                    Path(screenshot_path),
+                    blocked_tiles=blocked_bedroom_tiles,
+                    expected_tile=TilePoint(*current_tile),
+                ).to_dict()
+            record("visual-bedroom-decision", {**decision, "blocked_tiles": sorted(blocked_bedroom_tiles)})
             if decision.get("reason") == "already at target tile":
                 return _finish(True, run_id, output_path, events, "bedroom-target-reached", completed_steps)
             next_action = decision.get("next_action")
@@ -143,8 +165,10 @@ def _run(
             action = next_action
             player_tile = decision.get("player_tile")
             if isinstance(player_tile, dict):
+                last_bedroom_tile = (int(player_tile["x"]), int(player_tile["y"]))
+                last_bedroom_action = action
                 expected_bedroom_tile = TilePoint(
-                    *tile_after_action((int(player_tile["x"]), int(player_tile["y"])), action)
+                    *tile_after_action(last_bedroom_tile, action)
                 )
         _close_menu_if_known_open(client, record)
         press_frames = movement_press_frames if action in MOVEMENT_BUTTONS else button_press_frames
@@ -193,6 +217,16 @@ def _screenshot_path(observation: dict[str, Any]) -> str | None:
         return None
     path = screenshot.get("artifact_path") or screenshot.get("path")
     return path if isinstance(path, str) and path else None
+
+
+def _tile_tuple(value: object) -> tuple[int, int] | None:
+    if not isinstance(value, dict):
+        return None
+    x = value.get("x")
+    y = value.get("y")
+    if not isinstance(x, int) or not isinstance(y, int):
+        return None
+    return (x, y)
 
 
 def _resume_payload() -> dict[str, int]:

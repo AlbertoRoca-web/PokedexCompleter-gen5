@@ -33,6 +33,15 @@ def test_action_plan_rejects_unknown_actions() -> None:
         raise AssertionError("Expected ValueError")
 
 
+def test_tile_tuple_parses_tile_payload() -> None:
+    assert continuous_play._tile_tuple({"x": 2, "y": 5}) == (2, 5)
+
+
+def test_tile_tuple_rejects_malformed_payload() -> None:
+    assert continuous_play._tile_tuple({"x": "2", "y": 5}) is None
+    assert continuous_play._tile_tuple(None) is None
+
+
 def test_screenshot_path_prefers_artifact_path() -> None:
     assert continuous_play._screenshot_path({"screenshot": {"artifact_path": "a.png", "path": "b.png"}}) == "a.png"
 
