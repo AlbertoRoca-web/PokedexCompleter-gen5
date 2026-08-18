@@ -9,7 +9,7 @@ from typing import Any
 
 import httpx
 
-from pokedex_completer_gen5.emulator.bedroom_navigation import decide_bedroom_next_action
+from pokedex_completer_gen5.emulator.bedroom_navigation import TilePoint, decide_bedroom_next_action, tile_after_action
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / ".runtime" / "continuous-play"
@@ -113,6 +113,7 @@ def _run(
     record("checkpoint-start", start_checkpoint)
 
     completed_steps = 0
+    expected_bedroom_tile: TilePoint | None = None
     for step in range(1, max_steps + 1):
         if time.monotonic() - started >= max_seconds:
             return _finish(True, run_id, output_path, events, "stopped-time-budget", completed_steps)
@@ -126,7 +127,10 @@ def _run(
                     {"ok": False, "reason": "missing-screenshot", "observation": visual_observation},
                 )
                 return _finish(False, run_id, output_path, events, "visual-bedroom-missing-screenshot", completed_steps)
-            decision = decide_bedroom_next_action(Path(screenshot_path)).to_dict()
+            decision = decide_bedroom_next_action(
+                Path(screenshot_path),
+                expected_tile=expected_bedroom_tile,
+            ).to_dict()
             record("visual-bedroom-decision", decision)
             if decision.get("reason") == "already at target tile":
                 return _finish(True, run_id, output_path, events, "bedroom-target-reached", completed_steps)
@@ -134,6 +138,11 @@ def _run(
             if not isinstance(next_action, str):
                 return _finish(False, run_id, output_path, events, "visual-bedroom-no-action", completed_steps)
             action = next_action
+            player_tile = decision.get("player_tile")
+            if isinstance(player_tile, dict):
+                expected_bedroom_tile = TilePoint(
+                    *tile_after_action((int(player_tile["x"]), int(player_tile["y"])), action)
+                )
         _close_menu_if_known_open(client, record)
         press_frames = movement_press_frames if action in MOVEMENT_BUTTONS else button_press_frames
         press = _post(client, "/api/emulator/press", {"button": action, "frames": press_frames})
