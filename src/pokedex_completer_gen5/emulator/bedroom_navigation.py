@@ -81,7 +81,8 @@ def decide_bedroom_next_action(
     target = TilePoint(*STAIRS_TILE)
     if player_pixel is None:
         return BedroomNavigationDecision(None, None, target, [], None, "player sprite was not detected")
-    player_tile = pixel_to_bedroom_tile(player_pixel)
+    raw_player_tile = pixel_to_bedroom_tile(player_pixel)
+    player_tile = nearest_walkable_tile(raw_player_tile, blocked_tiles=blocked_tiles)
     path = astar_path(BEDROOM_GRID, player_tile.to_tuple(), target.to_tuple(), blocked_tiles=blocked_tiles)
     if not path:
         return BedroomNavigationDecision(player_pixel, player_tile, target, [], None, "no A* path to bedroom target")
@@ -157,6 +158,28 @@ def pixel_to_bedroom_tile(pixel: PixelPoint) -> TilePoint:
     max_y = len(BEDROOM_GRID) - 1
     max_x = len(BEDROOM_GRID[0]) - 1
     return TilePoint(_clamp(tile_x, 0, max_x), _clamp(tile_y, 0, max_y))
+
+
+def nearest_walkable_tile(
+    tile: TilePoint,
+    *,
+    blocked_tiles: set[tuple[int, int]] | None = None,
+) -> TilePoint:
+    blocked = blocked_tiles or set()
+    if _is_walkable(BEDROOM_GRID, tile.to_tuple(), blocked_tiles=blocked):
+        return tile
+    queue = deque([tile.to_tuple()])
+    seen = {tile.to_tuple()}
+    while queue:
+        current = queue.popleft()
+        for neighbor in _neighbors_for_search(current):
+            if neighbor in seen:
+                continue
+            if _is_walkable(BEDROOM_GRID, neighbor, blocked_tiles=blocked):
+                return TilePoint(*neighbor)
+            seen.add(neighbor)
+            queue.append(neighbor)
+    return tile
 
 
 def astar_path(
@@ -246,9 +269,16 @@ def tile_after_action(tile: TilePoint | tuple[int, int], action: Direction) -> t
 def _neighbors(
     grid: list[str], tile: tuple[int, int], *, blocked_tiles: set[tuple[int, int]]
 ) -> list[tuple[int, int]]:
+    return [
+        candidate
+        for candidate in _neighbors_for_search(tile)
+        if _is_walkable(grid, candidate, blocked_tiles=blocked_tiles)
+    ]
+
+
+def _neighbors_for_search(tile: tuple[int, int]) -> list[tuple[int, int]]:
     x, y = tile
-    candidates = [(x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y)]
-    return [candidate for candidate in candidates if _is_walkable(grid, candidate, blocked_tiles=blocked_tiles)]
+    return [(x, y - 1), (x, y + 1), (x - 1, y), (x + 1, y)]
 
 
 def _is_walkable(

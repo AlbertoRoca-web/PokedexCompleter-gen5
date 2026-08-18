@@ -12,6 +12,7 @@ from pokedex_completer_gen5.emulator.bedroom_navigation import (
     bedroom_tile_to_pixel,
     decide_bedroom_next_action,
     detect_player_pixel,
+    nearest_walkable_tile,
     pixel_to_bedroom_tile,
     tile_after_action,
 )
@@ -23,6 +24,10 @@ def test_pixel_to_bedroom_tile_uses_calibrated_grid() -> None:
 
 def test_bedroom_tile_to_pixel_uses_calibrated_grid() -> None:
     assert bedroom_tile_to_pixel(TilePoint(6, 6)) == PixelPoint(120, 136)
+
+
+def test_nearest_walkable_tile_snaps_blocked_detection() -> None:
+    assert nearest_walkable_tile(TilePoint(4, 5)) == TilePoint(3, 5)
 
 
 def test_astar_path_routes_to_stairs() -> None:
