@@ -139,6 +139,7 @@ def _run(
                 expected_tile=expected_bedroom_tile,
             ).to_dict()
             current_tile = _tile_tuple(decision.get("player_tile"))
+            current_tile = _normalize_visual_tile(current_tile, expected_bedroom_tile)
             if (
                 current_tile is not None
                 and last_bedroom_tile is not None
@@ -227,6 +228,24 @@ def _tile_tuple(value: object) -> tuple[int, int] | None:
     if not isinstance(x, int) or not isinstance(y, int):
         return None
     return (x, y)
+
+
+def _normalize_visual_tile(
+    current_tile: tuple[int, int] | None,
+    expected_tile: TilePoint | None,
+) -> tuple[int, int] | None:
+    """Suppress the known one-tile vertical sprite-anchor jitter.
+
+    A successful horizontal move can make the segmented sprite bounding box
+    report one row lower while the player remains on the expected tile. Do not
+    turn that visual artifact into a false blocked-tile observation.
+    """
+    if current_tile is None or expected_tile is None:
+        return current_tile
+    expected = (expected_tile.x, expected_tile.y)
+    if current_tile == (expected[0], expected[1] + 1):
+        return expected
+    return current_tile
 
 
 def _resume_payload() -> dict[str, int]:
