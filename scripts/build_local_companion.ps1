@@ -13,6 +13,7 @@ try {
         --clean `
         --onefile `
         --name $Name `
+        --paths src `
         --collect-all pokedex_completer_gen5 `
         scripts/local_companion.py
     Write-Host "Built dist/$Name.exe"
