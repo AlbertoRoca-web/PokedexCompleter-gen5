@@ -111,3 +111,5 @@ def test_gameplay_prompt_contains_closed_loop_context() -> None:
     assert "only the first action will execute" in prompt
     assert '"stuck": true' in prompt
     assert "reach stairs" in prompt
+    assert "sole mission is the physical Living Dex" in prompt
+    assert "Do not pursue story progression" in prompt

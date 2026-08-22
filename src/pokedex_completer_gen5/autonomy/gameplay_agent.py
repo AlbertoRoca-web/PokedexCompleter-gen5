@@ -8,6 +8,16 @@ from typing import Any, Protocol
 GameplayAction = str
 ALLOWED_ACTIONS = frozenset({"Up", "Down", "Left", "Right", "A", "B", "X", "Y", "Start", "Select", "L", "R"})
 
+LIVING_DEX_PROTOCOL = """This is a fully completed Pokemon White save. The sole mission is the physical Living Dex.
+Allowed subgoals are only navigation required for a Dex task, mandatory dialogue dismissal,
+party/PC inventory inspection, Fly capability, route discovery, wild encounters, catching,
+Pokemon Center recovery, evolution, breeding, and required travel between those operations.
+Do not pursue story progression, optional NPC errands, item collection, trainer cleanup, badges,
+achievements, shiny hunting, or any other side objective. Treat non-Dex activity as noise unless
+it is an unavoidable gate for the current Dex operation. The PC and party physical inventory
+are the source of truth, not Pokédex flags.
+"""
+
 
 @dataclass(frozen=True)
 class GameplayObservation:
@@ -33,6 +43,7 @@ class GameplayObservation:
             "repeated_frame_count": self.repeated_frame_count,
             "stuck": self.stuck,
             "objective": self.objective,
+            "mission_protocol": LIVING_DEX_PROTOCOL,
         }
 
 
@@ -196,6 +207,7 @@ def build_gameplay_prompt(observation: GameplayObservation) -> str:
     payload = observation.to_prompt_payload()
     return (
         "You control Pokemon White through bounded controller inputs.\n"
+        f"{LIVING_DEX_PROTOCOL}\n"
         "Inspect the attached emulator screenshot and return strict JSON only.\n"
         "Choose a short plan, but only the first action will execute before re-observation.\n"
         "Correct overshoot and blocked movement using recent actions and repeated_frame_count.\n"
