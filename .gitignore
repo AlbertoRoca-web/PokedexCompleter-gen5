@@ -20,6 +20,7 @@ logs/
 screenshots/
 checkpoints/
 *.jsonl
+!data/knowledge/*.jsonl
 
 # Saves / ROMs / copyrighted game files
 *.sav
