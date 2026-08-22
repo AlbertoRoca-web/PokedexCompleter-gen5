@@ -1,9 +1,22 @@
 from __future__ import annotations
 
 import json
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+AREA_GRAPH: dict[str, tuple[str, ...]] = {
+    "nuvema-town": ("unova-route-1-area",),
+    "unova-route-1-area": ("nuvema-town", "accumula-town"),
+    "accumula-town": ("unova-route-1-area", "unova-route-2-area"),
+    "unova-route-2-area": ("accumula-town", "striaton-city"),
+    "striaton-city": ("unova-route-2-area", "dreamyard-area", "unova-route-3-area"),
+    "dreamyard-area": ("striaton-city",),
+    "unova-route-3-area": ("striaton-city", "nacrene-city"),
+    "nacrene-city": ("unova-route-3-area", "pinwheel-forest-area"),
+    "pinwheel-forest-area": ("nacrene-city", "skyarrow-bridge-area"),
+}
 
 
 @dataclass(frozen=True)
@@ -71,6 +84,9 @@ class LocationKnowledgeBase:
                 seen.add(key)
                 locations.append(location)
         return tuple(locations)
+
+    def walking_cost(self, current_area: str, target_area: str) -> int:
+        return _walking_area_cost(current_area, target_area)
 
     def shortest_route(
         self,
@@ -142,9 +158,18 @@ class LocationKnowledgeBase:
 def _walking_area_cost(current_area: str, target_area: str) -> int:
     if current_area == target_area:
         return 0
-    # Precise overworld graph costs are learned from emulator transitions. Until
-    # then, different area names are conservatively more expensive than Fly.
-    return 2
+    queue: deque[tuple[str, int]] = deque([(current_area, 0)])
+    visited = {current_area}
+    while queue:
+        area, cost = queue.popleft()
+        for neighbor in AREA_GRAPH.get(area, ()):
+            if neighbor == target_area:
+                return cost + 1
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append((neighbor, cost + 1))
+    # Unknown graph segments are conservatively more expensive than Fly.
+    return 100
 
 
 def _optional_int(value: Any) -> int | None:

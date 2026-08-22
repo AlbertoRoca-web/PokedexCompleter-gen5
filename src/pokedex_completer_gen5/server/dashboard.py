@@ -92,6 +92,7 @@ DASHBOARD_HTML = """<!doctype html>
       <button type="button" onclick="launchBizHawk()">Launch BizHawk + White</button>
       <button type="button" onclick="diagnoseBridge()">Diagnose Bridge</button>
       <button type="button" onclick="ensureReady()">Ensure Ready</button>
+      <button type="button" onclick="discoverLocalConnection()">Discover Local Agent</button>
       <button type="button" onclick="emulatorState()">Get State</button>
       <button type="button" onclick="pressButton('confirm')">Confirm (A / keyboard X)</button>
       <button type="button" onclick="pressButton('cancel')">Cancel (B / keyboard Z)</button>
@@ -140,6 +141,9 @@ DASHBOARD_HTML = """<!doctype html>
     </div>
     <div id="emulatorStatus" class="status-panel status-warn">
       Status: not checked yet. Click Launch or Diagnose.
+    </div>
+    <div id="localConnectionStatus" class="status-panel status-warn">
+      Local companion: scanning...
     </div>
     <div class="status-panel">
       <strong>Latest screenshot</strong><br>
@@ -449,6 +453,24 @@ async function forceEmulatorSpeed() {
   }, 'emulatorOutput');
 }
 
+async function discoverLocalConnection() {
+  const status = document.getElementById('localConnectionStatus');
+  try {
+    const response = await fetch('/api/local/discover');
+    const data = await response.json();
+    const bridge = data.services?.native_bridge;
+    const ready = data.recommended_action === 'ready';
+    status.className = `status-panel ${ready ? 'status-ok' : 'status-warn'}`;
+    status.textContent = ready
+      ? 'Local companion and BizHawk bridge connected.'
+      : `Local companion found; next action: ${data.recommended_action}. ` +
+        `Bridge connected: ${Boolean(bridge?.connected)}`;
+  } catch (error) {
+    status.className = 'status-panel status-error';
+    status.textContent = `Local companion unavailable: ${error}`;
+  }
+}
+
 async function telemetryFetch() {
   await apiToPre('/api/telemetry', { method: 'GET' }, 'telemetryOutput');
 }
@@ -607,6 +629,7 @@ async function logUiEvent(eventType, payload) {
 
 document.getElementById('run').addEventListener('click', runReport);
 logUiEvent('dashboard_loaded', currentUiState());
+discoverLocalConnection();
 connectTelemetry();
 </script>
 </body>

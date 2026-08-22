@@ -13,7 +13,7 @@ KB = {
             "name": "Patrat",
             "locations": [
                 {
-                    "location_area": "route-1",
+                    "location_area": "unova-route-1-area",
                     "encounters": [{"method": "walk", "min_level": 2, "max_level": 4, "chance": 50}],
                 }
             ],
@@ -29,7 +29,7 @@ def test_location_kb_loads_target_encounters(tmp_path: Path) -> None:
     knowledge_base = LocationKnowledgeBase.load(path)
 
     locations = knowledge_base.locations_for(504)
-    assert locations[0].location_area == "route-1"
+    assert locations[0].location_area == "unova-route-1-area"
     assert locations[0].method == "walk"
 
 
@@ -38,7 +38,7 @@ def test_fly_route_contains_explicit_unfezant_protocol(tmp_path: Path) -> None:
     path.write_text(json.dumps(KB), encoding="utf-8")
     knowledge_base = LocationKnowledgeBase.load(path)
 
-    route = knowledge_base.shortest_route(current_area="nuvema-town", target_national=504, fly_available=True)
+    route = knowledge_base.shortest_route(current_area="castelia-city", target_national=504, fly_available=True)
 
     assert [step.operation for step in route] == [
         "toggle-menu",
@@ -53,11 +53,11 @@ def test_fly_route_contains_explicit_unfezant_protocol(tmp_path: Path) -> None:
     assert route[3].value == "Fly"
 
 
-def test_same_area_prefers_walk_without_fly(tmp_path: Path) -> None:
+def test_adjacent_area_prefers_walk_without_fly(tmp_path: Path) -> None:
     path = tmp_path / "locations.json"
     path.write_text(json.dumps(KB), encoding="utf-8")
     knowledge_base = LocationKnowledgeBase.load(path)
 
-    route = knowledge_base.shortest_route(current_area="route-1", target_national=504, fly_available=True)
+    route = knowledge_base.shortest_route(current_area="nuvema-town", target_national=504, fly_available=True)
 
     assert route[0].operation == "walk-to-area"

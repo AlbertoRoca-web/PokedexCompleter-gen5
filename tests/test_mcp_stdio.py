@@ -21,6 +21,7 @@ async def test_mcp_list_tools_handler() -> None:
     names = {tool.name for tool in result.tools}
     assert "pokemon.inspect_save" in names
     assert "pokemon.get_macro_reliability" in names
+    assert "pokemon.plan_missing_targets_by_route" in names
 
 
 @pytest.mark.asyncio

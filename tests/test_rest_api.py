@@ -14,6 +14,13 @@ def test_dashboard_endpoint() -> None:
     assert "PC Living Dex Dashboard" in response.text
 
 
+def test_local_connection_discovery_endpoint() -> None:
+    client = TestClient(app)
+    response = client.get("/api/local/discover")
+    assert response.status_code == 200
+    assert response.json()["services"]["mcp_stdio"]["command"] == "uv run rld-mcp"
+
+
 def test_health_endpoint() -> None:
     client = TestClient(app)
     response = client.get("/health")

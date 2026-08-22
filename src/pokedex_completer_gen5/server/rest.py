@@ -41,6 +41,7 @@ from pokedex_completer_gen5.persistence.store import (
 )
 from pokedex_completer_gen5.saveio.physical_report import build_save_payload, build_save_report
 from pokedex_completer_gen5.server.dashboard import DASHBOARD_HTML
+from pokedex_completer_gen5.server.local_connection import discover_local_connections
 from pokedex_completer_gen5.server.telemetry import (
     recent_telemetry_events,
     record_telemetry_event,
@@ -52,6 +53,11 @@ from pokedex_completer_gen5.trajectory import read_jsonl_events
 load_environment()
 
 app = FastAPI(title="PokedexCompleter Gen 5", version=__version__)
+
+
+@app.get("/api/local/discover")
+def local_connection_discovery() -> dict[str, Any]:
+    return discover_local_connections()
 
 
 class EmulatorLaunchRequest(BaseModel):
