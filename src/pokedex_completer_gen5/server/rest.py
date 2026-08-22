@@ -82,6 +82,18 @@ class EmulatorPressRequest(BaseModel):
     frames: int = Field(default=1, ge=1, le=120)
 
 
+class EmulatorFishingCastHookRequest(BaseModel):
+    hook_delay_frames: int = Field(default=100, ge=0, le=600)
+    settle_frames: int = Field(default=120, ge=0, le=1200)
+
+
+class EmulatorTimedPressRequest(BaseModel):
+    button: str
+    delay_frames: int = Field(default=0, ge=0, le=600)
+    press_frames: int = Field(default=1, ge=1, le=60)
+    settle_frames: int = Field(default=0, ge=0, le=600)
+
+
 class EmulatorTouchRequest(BaseModel):
     x: int = Field(ge=0, le=255)
     y: int = Field(ge=0, le=255, description="BizHawk NDS touch Y analog coordinate; 0-255 scales to 0-191 pixels.")
@@ -454,6 +466,39 @@ def emulator_press(request: EmulatorPressRequest) -> dict[str, Any]:
         )
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.press.error", exc) from exc
+
+
+@app.post("/api/emulator/fishing/cast-hook")
+def emulator_fishing_cast_hook(request: EmulatorFishingCastHookRequest) -> dict[str, Any]:
+    try:
+        payload = bridge_request(
+            "fishing_cast_hook",
+            {
+                "hook_delay_frames": request.hook_delay_frames,
+                "settle_frames": request.settle_frames,
+            },
+        )
+        return bridge_response("emulator.fishing.cast_hook", payload)
+    except (BizHawkBridgeError, NativeBridgeError) as exc:
+        raise bridge_error("emulator.fishing.cast_hook.error", exc) from exc
+
+
+@app.post("/api/emulator/timed-press")
+def emulator_timed_press(request: EmulatorTimedPressRequest) -> dict[str, Any]:
+    button = normalize_button_or_action(request.button)
+    try:
+        payload = bridge_request(
+            "timed_press",
+            {
+                "button": button,
+                "delay_frames": request.delay_frames,
+                "press_frames": request.press_frames,
+                "settle_frames": request.settle_frames,
+            },
+        )
+        return bridge_response("emulator.timed_press", payload)
+    except (BizHawkBridgeError, NativeBridgeError) as exc:
+        raise bridge_error("emulator.timed_press.error", exc) from exc
 
 
 @app.post("/api/emulator/touch")

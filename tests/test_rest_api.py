@@ -288,6 +288,47 @@ def test_emulator_press_endpoint_uses_bridge_client(monkeypatch: pytest.MonkeyPa
     assert sequence_response.json() == {"ok": True, "buttons": ["A", "B"], "frames": 2, "gap_frames": 3}
 
 
+def test_emulator_fishing_cast_hook_endpoint_is_atomic(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, dict[str, object] | None]] = []
+
+    def fake_bridge_request(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+        calls.append((method, params))
+        return {"ok": True, "method": method, **(params or {})}
+
+    monkeypatch.setattr("pokedex_completer_gen5.server.rest.bridge_request", fake_bridge_request)
+    response = TestClient(app).post(
+        "/api/emulator/fishing/cast-hook",
+        json={"hook_delay_frames": 100, "settle_frames": 120},
+    )
+
+    assert response.status_code == 200
+    assert calls == [
+        ("fishing_cast_hook", {"hook_delay_frames": 100, "settle_frames": 120})
+    ]
+
+
+def test_emulator_timed_press_endpoint_is_atomic(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, dict[str, object] | None]] = []
+
+    def fake_bridge_request(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+        calls.append((method, params))
+        return {"ok": True, "method": method, **(params or {})}
+
+    monkeypatch.setattr("pokedex_completer_gen5.server.rest.bridge_request", fake_bridge_request)
+    response = TestClient(app).post(
+        "/api/emulator/timed-press",
+        json={"button": "A", "delay_frames": 20, "press_frames": 1, "settle_frames": 30},
+    )
+
+    assert response.status_code == 200
+    assert calls == [
+        (
+            "timed_press",
+            {"button": "A", "delay_frames": 20, "press_frames": 1, "settle_frames": 30},
+        )
+    ]
+
+
 def test_emulator_touch_endpoint_uses_bridge_request(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, dict[str, object] | None]] = []
 

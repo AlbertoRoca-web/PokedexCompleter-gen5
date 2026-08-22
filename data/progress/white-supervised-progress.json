@@ -56,8 +56,8 @@
       {
         "national": 349,
         "species": "Feebas",
-        "method": "super-rod",
-        "chance": 5,
+        "method": "rippling-fishing",
+        "chance": 60,
         "next_target": true
       },
       {
@@ -103,6 +103,6 @@
     },
     "travel_mode": "stay-current-route",
     "fly_pokemon": "Unfezant",
-    "reason": "Finish ordinary-water Feebas at the verified fishing bank before leaving Route 1; defer phenomenon/swarm targets until detectors are reliable."
+    "reason": "Generate a Route 1 water ripple, stop adjacent without entering it, and cast the Super Rod into it for 60% Feebas instead of grinding ordinary water at 5%."
   }
 }

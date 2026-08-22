@@ -285,8 +285,8 @@ Avoid one-off scripts when the behavior belongs in an existing domain module. Ke
 2. Persist the landmark and Basculin catch in durable progress/knowledge data. **Completed.**
 3. Export/read current SaveRAM and confirm Basculin physically exists. **Completed:** Box 01 Slot 20.
 4. Recompute the regional Living Dex target report. **Completed:** 11/143 regional targets physically owned; 132 missing.
-5. Choose the next target using missing species, evolution reserves, and method-aware route completion. **Corrected:** remain on Route 1 for ordinary-water Feebas (5% Super Rod). Route 1 Audino/Milotic/swarm targets remain deferred, not complete.
-6. Supervise bounded fishing attempts for Feebas at the verified pond landing; then recompute before traveling to Dreamyard.
+5. Choose the next target using missing species, evolution reserves, and method-aware route completion. **Corrected again after mechanics research:** remain on Route 1 and generate a water ripple; cast the Super Rod into it for 60% Feebas / 5% Milotic. Do not Surf onto the ripple, which yields Basculin.
+6. Supervise ripple generation, shortest safe approach, adjacent-tile facing, and one bounded cast; then recompute before traveling to Dreamyard.
 7. Implement and test a deterministic fishing/capture controller from the recorded flow.
 8. Continue RAM semantic discovery alongside gameplay, especially battle and movement state.
 

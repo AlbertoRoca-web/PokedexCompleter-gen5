@@ -116,11 +116,45 @@ local function touch_screen(x, y, frames)
     y = math.max(0, math.min(255, tonumber(y) or 0))
     frames = math.max(1, tonumber(frames) or 1)
     for _ = 1, frames do
-        joypad.set({ ["Touch X"] = x, ["Touch Y"] = y, ["Touch"] = true })
+        joypad.setanalog({ ["Touch X"] = x, ["Touch Y"] = y })
+        joypad.set({ ["Touch"] = true })
         emu.frameadvance()
     end
     joypad.set({})
+    joypad.setanalog({ ["Touch X"] = "", ["Touch Y"] = "" })
     return json_object({ ok = true, method = "touch", x = x, y = y, frames = frames })
+end
+
+local function fishing_cast_hook(hook_delay_frames, settle_frames)
+    hook_delay_frames = math.max(0, tonumber(hook_delay_frames) or 0)
+    settle_frames = math.max(0, tonumber(settle_frames) or 0)
+    press_button("A", 1)
+    frame_advance(hook_delay_frames)
+    press_button("A", 1)
+    frame_advance(settle_frames)
+    return json_object({
+        ok = true,
+        method = "fishing_cast_hook",
+        hook_delay_frames = hook_delay_frames,
+        settle_frames = settle_frames
+    })
+end
+
+local function timed_press(button, delay_frames, press_frames, settle_frames)
+    delay_frames = math.max(0, tonumber(delay_frames) or 0)
+    press_frames = math.max(1, tonumber(press_frames) or 1)
+    settle_frames = math.max(0, tonumber(settle_frames) or 0)
+    frame_advance(delay_frames)
+    press_button(button, press_frames)
+    frame_advance(settle_frames)
+    return json_object({
+        ok = true,
+        method = "timed_press",
+        button = button,
+        delay_frames = delay_frames,
+        press_frames = press_frames,
+        settle_frames = settle_frames
+    })
 end
 
 local function press_sequence(buttons_csv, frames, gap_frames)
@@ -342,6 +376,18 @@ local function handle_request(payload)
             extract_number(payload, "x", 0),
             extract_number(payload, "y", 0),
             extract_number(payload, "frames", 1)
+        )
+    elseif method == "fishing_cast_hook" then
+        response = fishing_cast_hook(
+            extract_number(payload, "hook_delay_frames", 100),
+            extract_number(payload, "settle_frames", 120)
+        )
+    elseif method == "timed_press" then
+        response = timed_press(
+            extract_string(payload, "button", "A"),
+            extract_number(payload, "delay_frames", 0),
+            extract_number(payload, "press_frames", 1),
+            extract_number(payload, "settle_frames", 0)
         )
     elseif method == "press_sequence" then
         local buttons_csv = extract_string(payload, "buttons_csv", "")
