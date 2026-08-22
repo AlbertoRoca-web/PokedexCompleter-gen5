@@ -62,7 +62,8 @@ def local_connection_discovery() -> dict[str, Any]:
 
 class EmulatorLaunchRequest(BaseModel):
     rom_path: Path | None = None
-    install_save: bool = True
+    install_save: bool = False
+    force_install_save: bool = False
     restart_existing: bool = True
     wait_for_bridge: bool = True
 
@@ -340,7 +341,8 @@ def emulator_launch(request: EmulatorLaunchRequest | None = None) -> dict[str, A
         config = bizhawk_launch_config_from_env(rom_path=request.rom_path if request else None)
         payload = launch_bizhawk(
             config,
-            install_save=request.install_save if request else True,
+            install_save=request.install_save if request else False,
+            force_install_save=request.force_install_save if request else False,
             restart_existing=request.restart_existing if request else True,
         )
         if request is None or request.wait_for_bridge:

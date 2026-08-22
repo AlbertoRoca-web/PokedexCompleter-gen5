@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -41,14 +42,25 @@ def bizhawk_launch_config_from_env(rom_path: Path | None = None) -> BizHawkLaunc
     )
 
 
-def install_bizhawk_save(config: BizHawkLaunchConfig) -> dict[str, Any] | None:
+def install_bizhawk_save(config: BizHawkLaunchConfig, *, force: bool = False) -> dict[str, Any] | None:
     if config.save_source is None or config.saveram_path is None:
         return None
     if not config.save_source.exists():
         raise FileNotFoundError(f"Configured White save not found: {config.save_source}")
     config.saveram_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(config.save_source, config.saveram_path)
     source_hash = _sha256(config.save_source)
+    backup_path = None
+    if config.saveram_path.exists():
+        existing_hash = _sha256(config.saveram_path)
+        if existing_hash != source_hash and not force:
+            raise FileExistsError(
+                "Refusing to overwrite a different live SaveRAM. "
+                "Export/backup it first or explicitly force installation."
+            )
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        backup_path = config.saveram_path.with_name(f"{config.saveram_path.name}.{timestamp}.bak")
+        shutil.copy2(config.saveram_path, backup_path)
+    shutil.copyfile(config.save_source, config.saveram_path)
     saveram_hash = _sha256(config.saveram_path)
     return {
         "source": str(config.save_source),
@@ -56,6 +68,7 @@ def install_bizhawk_save(config: BizHawkLaunchConfig) -> dict[str, Any] | None:
         "bytes": config.saveram_path.stat().st_size,
         "sha256": saveram_hash,
         "match": source_hash == saveram_hash,
+        "backup_path": str(backup_path) if backup_path else None,
     }
 
 
@@ -84,7 +97,8 @@ def stop_existing_bizhawk(config: BizHawkLaunchConfig) -> dict[str, Any]:
 def launch_bizhawk(
     config: BizHawkLaunchConfig,
     *,
-    install_save: bool = True,
+    install_save: bool = False,
+    force_install_save: bool = False,
     restart_existing: bool = True,
 ) -> dict[str, Any]:
     if not config.bizhawk_exe.exists():
@@ -95,7 +109,7 @@ def launch_bizhawk(
         raise FileNotFoundError(f"Lua bridge script not found: {config.lua_script}")
 
     stopped_existing = stop_existing_bizhawk(config) if restart_existing else None
-    installed_save = install_bizhawk_save(config) if install_save else None
+    installed_save = install_bizhawk_save(config, force=force_install_save) if install_save else None
 
     native_config = native_bridge_config_from_env()
     args = [

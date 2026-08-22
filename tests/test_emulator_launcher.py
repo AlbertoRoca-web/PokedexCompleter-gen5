@@ -38,7 +38,7 @@ def test_launch_bizhawk_builds_process(monkeypatch: pytest.MonkeyPatch, tmp_path
         lambda config: {"attempted": True, "exit_code": 0},
     )
 
-    result = launch_bizhawk(BizHawkLaunchConfig(exe, rom, lua, save, saveram))
+    result = launch_bizhawk(BizHawkLaunchConfig(exe, rom, lua, save, saveram), install_save=True)
 
     assert result["ok"] is True
     assert result["pid"] == 1234
