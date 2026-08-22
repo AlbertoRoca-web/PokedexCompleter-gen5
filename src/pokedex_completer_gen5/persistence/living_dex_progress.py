@@ -84,12 +84,16 @@ def build_master_route_cross_reference(
     limit: int = 20,
 ) -> dict[str, Any]:
     catches = verified_catches(db_path)
+    session_counts: dict[int, int] = {}
+    for catch in catches:
+        session_counts[catch.species_id] = session_counts.get(catch.species_id, 0) + 1
     route_plan = build_route_target_plan(
         save_path=save_path,
         current_area=current_area,
         fly_available=fly_available,
         limit=limit,
         additional_owned_ids={catch.species_id for catch in catches},
+        additional_owned_counts=session_counts,
     )
     return {
         "master_state_sources": ["save-party-pc", "verified-session-catches", "future-live-pc-ram"],

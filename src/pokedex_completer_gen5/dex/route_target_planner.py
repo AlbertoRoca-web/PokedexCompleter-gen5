@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from pokedex_completer_gen5.dex.bw_unova import UNOVA_DEX
 from pokedex_completer_gen5.dex.catchable_targets import build_catchable_inventory_report
 from pokedex_completer_gen5.dex.location_kb import FlyPolicy, LocationKnowledgeBase, NavigationStep
 from pokedex_completer_gen5.saveio.gen5_save import build_save_payload
@@ -47,14 +49,16 @@ def build_route_target_plan(
     kb_path: Path = DEFAULT_KB_PATH,
     limit: int = 20,
     additional_owned_ids: set[int] | None = None,
+    additional_owned_counts: dict[int, int] | None = None,
 ) -> dict[str, Any]:
     payload = build_save_payload(save_path, game, "auto")
     report = build_catchable_inventory_report(payload, game, mode="direct")
     additional_owned_ids = additional_owned_ids or set()
+    master_counts = _master_counts(payload, additional_owned_counts or {})
     missing = {
         target.national: target.name
         for target in report.missing_targets
-        if target.national not in additional_owned_ids
+        if target.national not in additional_owned_ids and not _family_quota_satisfied(target.national, master_counts)
     }
     knowledge_base = LocationKnowledgeBase.load(kb_path)
     grouped: dict[str, dict[int, set[str]]] = {}
@@ -89,6 +93,31 @@ def build_route_target_plan(
         "navigation": [step.to_dict() for step in navigation],
         "routes": [group.to_dict() for group in route_groups[:limit]],
     }
+
+
+def _master_counts(payload: dict[str, Any], additional: dict[int, int]) -> Counter[int]:
+    counts: Counter[int] = Counter()
+    raw_counts = payload.get("selected_species_counts", [])
+    if not isinstance(raw_counts, list):
+        raw_counts = []
+    for entry in raw_counts:
+        if not isinstance(entry, dict):
+            continue
+        species_id = entry.get("species_id")
+        count = entry.get("count")
+        if isinstance(species_id, int) and isinstance(count, int):
+            counts[species_id] = max(counts[species_id], count)
+    for species_id, count in additional.items():
+        counts[species_id] = max(counts[species_id], count)
+    return counts
+
+
+def _family_quota_satisfied(species_id: int, counts: Counter[int]) -> bool:
+    pokemon = next((entry for entry in UNOVA_DEX if entry.national == species_id), None)
+    if pokemon is None:
+        return False
+    family_ids = {entry.national for entry in UNOVA_DEX if entry.name in pokemon.family}
+    return sum(counts[national] for national in family_ids) >= min(3, len(pokemon.family))
 
 
 def _navigation_steps(

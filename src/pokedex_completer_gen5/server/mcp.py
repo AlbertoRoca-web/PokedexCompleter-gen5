@@ -12,6 +12,7 @@ from pokedex_completer_gen5.dex.encounter_policy import decide_encounter
 from pokedex_completer_gen5.dex.evolution_kb import evolution_record
 from pokedex_completer_gen5.dex.nickname_generator import generate_safe_nickname
 from pokedex_completer_gen5.dex.route_target_planner import build_route_target_plan
+from pokedex_completer_gen5.dex.route_transition_planner import plan_route_transition
 from pokedex_completer_gen5.persistence.living_dex_progress import (
     build_master_route_cross_reference,
     record_verified_catch,
@@ -168,6 +169,20 @@ TOOL_SPECS: tuple[McpToolSpec, ...] = (
         input_schema={"type": "object", "properties": {}},
     ),
     McpToolSpec(
+        name="pokemon.plan_route_transition",
+        description="Stay, walk, or Fly after checking current-map missing targets and field capabilities.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "save_path": {"type": "string"},
+                "current_area": {"type": "string"},
+                "available_methods": {"type": "array", "items": {"type": "string"}},
+                "fly_available": {"type": "boolean", "default": True}
+            },
+            "required": ["save_path", "current_area", "available_methods"],
+        },
+    ),
+    McpToolSpec(
         name="pokemon.get_macro_reliability",
         description="Return local persistent macro feedback reliability summary.",
         input_schema={
@@ -266,6 +281,16 @@ def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         ).to_dict()
     if name == "pokemon.get_post_capture_protocol":
         return post_capture_save_protocol()
+    if name == "pokemon.plan_route_transition":
+        raw_methods = arguments.get("available_methods", [])
+        if not isinstance(raw_methods, list) or not all(isinstance(method, str) for method in raw_methods):
+            raise ValueError("available_methods must be a list of strings")
+        return plan_route_transition(
+            save_path=Path(str(arguments["save_path"])),
+            current_area=str(arguments["current_area"]),
+            available_methods=set(raw_methods),
+            fly_available=bool(arguments.get("fly_available", True)),
+        )
     if name == "pokemon.get_macro_reliability":
         return {"reliability": service().macro_reliability(limit=int(arguments.get("limit", 1000)))}
     raise ValueError(f"Unknown MCP tool: {name}")
