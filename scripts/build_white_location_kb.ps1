@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$SavePath,
-    [string]$OutputPath = "data/knowledge/white-catchable-locations.json",
+    [string]$OutputPath = "data/knowledge/white-catchable-locations.jsonl",
     [ValidateSet("direct", "obtainable")]
     [string]$Mode = "direct",
     [int]$DelayMilliseconds = 100
@@ -79,5 +79,12 @@ $knowledgeBase = [ordered]@{
 }
 
 New-Item -ItemType Directory -Force -Path (Split-Path $output -Parent) | Out-Null
-$knowledgeBase | ConvertTo-Json -Depth 12 | Set-Content -Path $output -Encoding UTF8
+$metadata = $knowledgeBase.Clone()
+$metadata.Remove("targets")
+$lines = [System.Collections.Generic.List[string]]::new()
+$lines.Add(($metadata | ConvertTo-Json -Depth 8 -Compress))
+foreach ($record in $records) {
+    $lines.Add(($record | ConvertTo-Json -Depth 12 -Compress))
+}
+$lines | Set-Content -Path $output -Encoding UTF8
 Write-Host "Wrote $output"

@@ -52,7 +52,15 @@ class LocationKnowledgeBase:
 
     @classmethod
     def load(cls, path: Path) -> LocationKnowledgeBase:
-        return cls(json.loads(path.read_text(encoding="utf-8-sig")))
+        text = path.read_text(encoding="utf-8-sig")
+        if path.suffix == ".jsonl":
+            lines = [json.loads(line) for line in text.splitlines() if line.strip()]
+            if not lines:
+                raise ValueError(f"Empty location knowledge base: {path}")
+            payload = dict(lines[0])
+            payload["targets"] = lines[1:]
+            return cls(payload)
+        return cls(json.loads(text))
 
     def locations_for(self, national: int) -> tuple[TargetLocation, ...]:
         seen: set[tuple[int, str, str, int | None, int | None]] = set()
