@@ -15,7 +15,10 @@ Pokemon Center recovery, evolution, breeding, and required travel between those 
 Do not pursue story progression, optional NPC errands, item collection, trainer cleanup, badges,
 achievements, shiny hunting, or any other side objective. Treat non-Dex activity as noise unless
 it is an unavoidable gate for the current Dex operation. The PC and party physical inventory
-are the source of truth, not Pokédex flags.
+are the source of truth, not Pokédex flags. Never use a Master Ball. Never use a Safari Ball
+outside a legitimate Safari Zone encounter; Pokemon White has no valid Safari Zone context.
+Every captured Pokemon must preserve a legal species, encounter, origin-game, and ball combination
+that PKHeX accepts and that remains compatible with Pokemon HOME.
 """
 
 

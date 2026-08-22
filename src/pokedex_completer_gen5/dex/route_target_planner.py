@@ -46,10 +46,16 @@ def build_route_target_plan(
     game: str = "white",
     kb_path: Path = DEFAULT_KB_PATH,
     limit: int = 20,
+    additional_owned_ids: set[int] | None = None,
 ) -> dict[str, Any]:
     payload = build_save_payload(save_path, game, "auto")
     report = build_catchable_inventory_report(payload, game, mode="direct")
-    missing = {target.national: target.name for target in report.missing_targets}
+    additional_owned_ids = additional_owned_ids or set()
+    missing = {
+        target.national: target.name
+        for target in report.missing_targets
+        if target.national not in additional_owned_ids
+    }
     knowledge_base = LocationKnowledgeBase.load(kb_path)
     grouped: dict[str, dict[int, set[str]]] = {}
     for national in missing:

@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+from PIL import Image, ImageDraw
+
 _SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "continuous_play.py"
 _SPEC = importlib.util.spec_from_file_location("continuous_play", _SCRIPT_PATH)
 assert _SPEC is not None
@@ -52,6 +54,22 @@ def test_screenshot_path_falls_back_to_path() -> None:
 
 def test_screenshot_path_returns_none_when_missing() -> None:
     assert continuous_play._screenshot_path({"screenshot": {}}) is None
+
+
+def test_battle_lane_detector_finds_red_battle_ui(tmp_path: Path) -> None:
+    path = tmp_path / "battle.png"
+    image = Image.new("RGB", (256, 384), (0, 20, 24))
+    ImageDraw.Draw(image).rectangle((0, 220, 255, 300), fill=(180, 10, 20))
+    image.save(path)
+
+    assert continuous_play._is_battle_like_screenshot(path) is True
+
+
+def test_battle_lane_detector_ignores_dark_overworld_bottom_screen(tmp_path: Path) -> None:
+    path = tmp_path / "overworld.png"
+    Image.new("RGB", (256, 384), (0, 30, 35)).save(path)
+
+    assert continuous_play._is_battle_like_screenshot(path) is False
 
 
 def test_finish_reports_jsonl_path() -> None:

@@ -3,11 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 import time
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
+from PIL import Image
 
 from pokedex_completer_gen5.emulator.bedroom_navigation import TilePoint, decide_bedroom_next_action, tile_after_action
 
@@ -36,6 +38,8 @@ def main() -> int:
     parser.add_argument("--settle-frames", type=int, default=120)
     parser.add_argument("--checkpoint-every", type=int, default=10)
     parser.add_argument("--observe-every", type=int, default=1)
+    parser.add_argument("--execution-lane", choices=("overworld", "battle"), default="overworld")
+    parser.add_argument("--close-known-menu", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--resume-title", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--ensure-ready", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--stop-if-title-resume-fails", action=argparse.BooleanOptionalAction, default=False)
@@ -59,6 +63,8 @@ def main() -> int:
         settle_frames=args.settle_frames,
         checkpoint_every=args.checkpoint_every,
         observe_every=args.observe_every,
+        execution_lane=args.execution_lane,
+        close_known_menu=args.close_known_menu,
         resume_title=args.resume_title,
         ensure_ready=args.ensure_ready,
         stop_if_title_resume_fails=args.stop_if_title_resume_fails,
@@ -81,6 +87,8 @@ def _run(
     settle_frames: int,
     checkpoint_every: int,
     observe_every: int,
+    execution_lane: str,
+    close_known_menu: bool,
     resume_title: bool,
     ensure_ready: bool,
     stop_if_title_resume_fails: bool,
@@ -171,10 +179,12 @@ def _run(
                 expected_bedroom_tile = TilePoint(
                     *tile_after_action(last_bedroom_tile, action)
                 )
-        _close_menu_if_known_open(client, record)
+        if close_known_menu and execution_lane == "overworld":
+            _close_menu_if_known_open(client, record)
         press_frames = movement_press_frames if action in MOVEMENT_BUTTONS else button_press_frames
+        effective_settle_frames = min(settle_frames, 24) if execution_lane == "battle" else settle_frames
         press = _post(client, "/api/emulator/press", {"button": action, "frames": press_frames})
-        advance = _post(client, "/api/emulator/frame-advance", {"frames": settle_frames})
+        advance = _post(client, "/api/emulator/frame-advance", {"frames": effective_settle_frames})
         completed_steps = step
         record(
             "step",
@@ -182,12 +192,19 @@ def _run(
                 "step": step,
                 "action": action,
                 "press_frames": press_frames,
-                "settle_frames": settle_frames,
+                "settle_frames": effective_settle_frames,
+                "execution_lane": execution_lane,
                 "press": press,
                 "advance": advance,
             },
         )
-        if observe_every > 0 and step % observe_every == 0:
+        if execution_lane == "overworld":
+            screenshot = _get(client, "/api/emulator/screenshot")
+            screenshot_path = screenshot.get("artifact_path") or screenshot.get("path")
+            if isinstance(screenshot_path, str) and _is_battle_like_screenshot(Path(screenshot_path)):
+                record("lane-transition", {"from": "overworld", "to": "battle", "screenshot": screenshot})
+                return _finish(True, run_id, output_path, events, "entered-battle-lane", completed_steps)
+        if execution_lane == "battle" or (observe_every > 0 and step % observe_every == 0):
             record("observe", _observe(client))
         if checkpoint_every > 0 and step % checkpoint_every == 0:
             record("checkpoint", _post(client, "/api/emulator/checkpoint/save", {"name": f"{run_id}-step-{step:04d}"}))
@@ -218,6 +235,19 @@ def _screenshot_path(observation: dict[str, Any]) -> str | None:
         return None
     path = screenshot.get("artifact_path") or screenshot.get("path")
     return path if isinstance(path, str) and path else None
+
+
+def _is_battle_like_screenshot(path: Path) -> bool:
+    with Image.open(path) as image:
+        rgb = image.convert("RGB")
+        _, height = rgb.size
+        bottom = rgb.crop((0, height // 2, rgb.width, height))
+        pixels = cast(Iterable[tuple[int, int, int]], bottom.getdata())
+        red_pixels = sum(
+            1 for red, green, blue in pixels if red >= 90 and red > green * 1.35 and red > blue * 1.2
+        )
+        pixel_count = bottom.width * bottom.height
+    return red_pixels / max(1, pixel_count) >= 0.015
 
 
 def _tile_tuple(value: object) -> tuple[int, int] | None:
