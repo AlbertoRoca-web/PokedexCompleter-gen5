@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "game": "white",
+  "rods": {
+    "usable": ["super-rod"],
+    "unobtainable_or_unusable": ["old-rod", "good-rod"],
+    "super_rod_source": "Looker in Nuvema Town after defeating Ghetsis"
+  },
+  "field_capabilities": {
+    "surf_user": "Herdier",
+    "surf_known": true,
+    "super_rod_owned": true,
+    "registered_item": "super-rod"
+  },
+  "encounter_pool_types": [
+    "grass",
+    "dark-grass",
+    "rustling-grass",
+    "surf",
+    "rippling-surf",
+    "super-rod",
+    "rippling-fishing",
+    "swarm"
+  ],
+  "breeding": {
+    "ditto_required_for_genderless": true,
+    "ditto_injected_expected": true,
+    "ditto_cannot_breed_with_ditto": true,
+    "undiscovered_group_cannot_breed": true,
+    "daycare": "unova-route-3",
+    "second_slot_requires": "Bicycle obtained in Nimbasa City",
+    "egg_check_steps": 256,
+    "gen5_egg_ball": "poke-ball"
+  },
+  "evolution_examples": [
+    {"from": "Patrat", "to": "Watchog", "trigger": "level-up", "level": 20},
+    {"from": "Lillipup", "to": "Herdier", "trigger": "level-up", "level": 16},
+    {"from": "Herdier", "to": "Stoutland", "trigger": "level-up", "level": 32}
+  ],
+  "sources": [
+    "https://bulbapedia.bulbagarden.net/wiki/Super_Rod",
+    "https://bulbapedia.bulbagarden.net/wiki/Unova_Route_1",
+    "https://bulbapedia.bulbagarden.net/wiki/Phenomenon",
+    "https://bulbapedia.bulbagarden.net/wiki/Pok%C3%A9mon_Day_Care",
+    "https://bulbapedia.bulbagarden.net/wiki/Pok%C3%A9mon_breeding",
+    "https://pokeapi.co/api/v2/evolution-chain/259/",
+    "https://pokeapi.co/api/v2/evolution-chain/260/",
+    "https://github.com/kwsch/PKHeX/blob/master/PKHeX.Core/Legality/Verifiers/Ball/BallVerifier.cs",
+    "https://home.pokemon.com/en-us/move/"
+  ]
+}

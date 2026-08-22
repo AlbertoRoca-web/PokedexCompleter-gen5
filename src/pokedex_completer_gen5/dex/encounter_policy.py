@@ -62,7 +62,9 @@ def decide_encounter(
     payload = build_save_payload(save_path, game, "auto")
     save_counts = _save_species_counts(payload)
     session_counts = Counter(catch.species_id for catch in verified_catches(progress_db))
-    owned_counts = save_counts + session_counts
+    owned_counts = save_counts.copy()
+    for national, count in session_counts.items():
+        owned_counts[national] = max(owned_counts[national], count)
     family_ids = {
         entry.national
         for entry in UNOVA_DEX
@@ -70,7 +72,7 @@ def decide_encounter(
     }
     owned_species = owned_counts[species_id]
     owned_family_bodies = sum(owned_counts[national] for national in family_ids)
-    family_quota = len(pokemon.family)
+    family_quota = _family_body_quota(species_id, pokemon.family)
     rarity = classify_spawn_rarity(encounter_chance)
     if owned_family_bodies >= family_quota:
         action, reason = "run", "Evolution family physical-body quota is already satisfied."
@@ -93,6 +95,12 @@ def decide_encounter(
         owned_family_bodies,
         reason,
     )
+
+
+def _family_body_quota(species_id: int, family: tuple[str, ...]) -> int:
+    # Ordinary linear families need at most one body per stage. Eevee is the
+    # deliberate exception because its branching evolutions need one body each.
+    return len(family) if species_id == 133 else min(3, len(family))
 
 
 def _save_species_counts(payload: dict[str, Any]) -> Counter[int]:

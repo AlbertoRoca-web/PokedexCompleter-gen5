@@ -6,8 +6,10 @@ from typing import Any
 
 from pokedex_completer_gen5.application.service import service
 from pokedex_completer_gen5.autonomy.capture_protocol import post_capture_save_protocol
+from pokedex_completer_gen5.dex.breeding_protocol import build_breeding_plan
 from pokedex_completer_gen5.dex.catch_legality import CatchContext, choose_legal_ball
 from pokedex_completer_gen5.dex.encounter_policy import decide_encounter
+from pokedex_completer_gen5.dex.evolution_kb import evolution_record
 from pokedex_completer_gen5.dex.nickname_generator import generate_safe_nickname
 from pokedex_completer_gen5.dex.route_target_planner import build_route_target_plan
 from pokedex_completer_gen5.persistence.living_dex_progress import (
@@ -137,6 +139,30 @@ TOOL_SPECS: tuple[McpToolSpec, ...] = (
         },
     ),
     McpToolSpec(
+        name="pokemon.get_evolution_record",
+        description="Return verified PokeAPI evolution triggers for a Unova National species ID.",
+        input_schema={
+            "type": "object",
+            "properties": {"species_id": {"type": "integer"}},
+            "required": ["species_id"],
+        },
+    ),
+    McpToolSpec(
+        name="pokemon.get_breeding_protocol",
+        description="Build a Ditto-aware, Gen 5 legal breeding plan before evolution gap filling.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "parent_species": {"type": "string"},
+                "base_species": {"type": "string"},
+                "eggs_needed": {"type": "integer"},
+                "ditto_owned": {"type": "boolean"},
+                "bicycle_owned": {"type": "boolean", "default": True}
+            },
+            "required": ["parent_species", "base_species", "eggs_needed", "ditto_owned"],
+        },
+    ),
+    McpToolSpec(
         name="pokemon.get_post_capture_protocol",
         description="Return the mandatory save-and-refresh loop performed after every verified capture.",
         input_schema={"type": "object", "properties": {}},
@@ -228,6 +254,16 @@ def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         )
     if name == "pokemon.generate_safe_nickname":
         return {"nickname": generate_safe_nickname(seed=arguments.get("seed")), "home_safe": True}
+    if name == "pokemon.get_evolution_record":
+        return evolution_record(int(arguments["species_id"]))
+    if name == "pokemon.get_breeding_protocol":
+        return build_breeding_plan(
+            parent_species=str(arguments["parent_species"]),
+            base_species=str(arguments["base_species"]),
+            eggs_needed=int(arguments["eggs_needed"]),
+            ditto_owned=bool(arguments["ditto_owned"]),
+            bicycle_owned=bool(arguments.get("bicycle_owned", True)),
+        ).to_dict()
     if name == "pokemon.get_post_capture_protocol":
         return post_capture_save_protocol()
     if name == "pokemon.get_macro_reliability":
