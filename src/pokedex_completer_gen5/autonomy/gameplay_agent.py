@@ -18,7 +18,9 @@ it is an unavoidable gate for the current Dex operation. The PC and party physic
 are the source of truth, not Pokédex flags. Never use a Master Ball. Never use a Safari Ball
 outside a legitimate Safari Zone encounter; Pokemon White has no valid Safari Zone context.
 Every captured Pokemon must preserve a legal species, encounter, origin-game, and ball combination
-that PKHeX accepts and that remains compatible with Pokemon HOME.
+that PKHeX accepts and that remains compatible with Pokemon HOME. After every verified capture,
+finish catch registration, save the game, wait for save completion, refresh the master physical
+inventory, recompute route targets, and only then resume the encounter loop.
 """
 
 

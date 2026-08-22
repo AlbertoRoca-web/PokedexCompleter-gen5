@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "game": "white",
+  "area": "unova-route-1-area",
+  "seasons": "all",
+  "sources": [
+    "https://www.serebii.net/pokearth/unova/route1.shtml",
+    "https://bulbapedia.bulbagarden.net/wiki/Unova_Route_1",
+    "https://pokeapi.co/api/v2/location-area/623/"
+  ],
+  "encounters": [
+    {"species": "Patrat", "national": 504, "method": "grass", "levels": [2, 4], "chance": 50},
+    {"species": "Lillipup", "national": 506, "method": "grass", "levels": [2, 4], "chance": 50},
+    {"species": "Herdier", "national": 507, "method": "dark-grass", "levels": [32, 34], "chance": 39},
+    {"species": "Watchog", "national": 505, "method": "dark-grass", "levels": [32, 35], "chance": 36},
+    {"species": "Scraggy", "national": 559, "method": "dark-grass", "levels": [32, 35], "chance": 25},
+    {"species": "Audino", "national": 531, "method": "rustling-grass", "levels": [2, 4], "chance": 100},
+    {"species": "Basculin", "form": "blue-striped", "national": 550, "method": "surf", "levels": [5, 15], "chance": 100},
+    {"species": "Basculin", "form": "red-striped", "national": 550, "method": "rippling-surf", "levels": [5, 20], "chance": 100},
+    {"species": "Feebas", "national": 349, "method": "super-rod", "levels": [35, 55], "chance": 5},
+    {"species": "Basculin", "form": "blue-striped", "national": 550, "method": "super-rod", "levels": [35, 55], "chance": 95},
+    {"species": "Feebas", "national": 349, "method": "rippling-fishing", "levels": [35, 60], "chance": 40},
+    {"species": "Milotic", "national": 350, "method": "rippling-fishing", "levels": [45, 70], "chance": 5},
+    {"species": "Basculin", "form": "red-striped", "national": 550, "method": "rippling-fishing", "levels": [35, 70], "chance": 55},
+    {"species": "Farfetchd", "national": 83, "method": "swarm-grass", "levels": [15, 55], "chance": 40}
+  ]
+}

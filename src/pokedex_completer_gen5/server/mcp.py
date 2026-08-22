@@ -5,7 +5,9 @@ from pathlib import Path
 from typing import Any
 
 from pokedex_completer_gen5.application.service import service
+from pokedex_completer_gen5.autonomy.capture_protocol import post_capture_save_protocol
 from pokedex_completer_gen5.dex.catch_legality import CatchContext, choose_legal_ball
+from pokedex_completer_gen5.dex.encounter_policy import decide_encounter
 from pokedex_completer_gen5.dex.route_target_planner import build_route_target_plan
 from pokedex_completer_gen5.persistence.living_dex_progress import (
     build_master_route_cross_reference,
@@ -81,6 +83,20 @@ TOOL_SPECS: tuple[McpToolSpec, ...] = (
         },
     ),
     McpToolSpec(
+        name="pokemon.decide_encounter",
+        description="Catch or run by live PC/party/session inventory, family quota, and route-specific spawn rarity.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "save_path": {"type": "string"},
+                "species_id": {"type": "integer"},
+                "encounter_chance": {"type": "number"},
+                "game": {"type": "string", "default": "white"},
+            },
+            "required": ["save_path", "species_id", "encounter_chance"],
+        },
+    ),
+    McpToolSpec(
         name="pokemon.record_verified_catch",
         description="Record a screenshot-verified legal catch in the session master inventory.",
         input_schema={
@@ -110,6 +126,11 @@ TOOL_SPECS: tuple[McpToolSpec, ...] = (
             },
             "required": ["save_path", "current_area"],
         },
+    ),
+    McpToolSpec(
+        name="pokemon.get_post_capture_protocol",
+        description="Return the mandatory save-and-refresh loop performed after every verified capture.",
+        input_schema={"type": "object", "properties": {}},
     ),
     McpToolSpec(
         name="pokemon.get_macro_reliability",
@@ -173,6 +194,13 @@ def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             is_safari_zone=bool(arguments.get("is_safari_zone", False)),
         )
         return {"selected_ball": choose_legal_ball(raw_balls, context), "legal": True}
+    if name == "pokemon.decide_encounter":
+        return decide_encounter(
+            save_path=Path(str(arguments["save_path"])),
+            species_id=int(arguments["species_id"]),
+            encounter_chance=float(arguments["encounter_chance"]),
+            game=str(arguments.get("game", "white")),
+        ).to_dict()
     if name == "pokemon.record_verified_catch":
         catch = record_verified_catch(
             species_id=int(arguments["species_id"]),
@@ -189,6 +217,8 @@ def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             fly_available=bool(arguments.get("fly_available", True)),
             limit=int(arguments.get("limit", 20)),
         )
+    if name == "pokemon.get_post_capture_protocol":
+        return post_capture_save_protocol()
     if name == "pokemon.get_macro_reliability":
         return {"reliability": service().macro_reliability(limit=int(arguments.get("limit", 1000)))}
     raise ValueError(f"Unknown MCP tool: {name}")
