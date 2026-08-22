@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "game": "white",
+  "last_updated": "2026-08-22",
+  "current_landmark": {
+    "id": "route-1-rectangular-pond-east-bank",
+    "location_area": "unova-route-1-area",
+    "description": "East bank of the rectangular Route 1 pond, beside the red-railed stair passage.",
+    "facing": "west",
+    "verified_fishing_bank": true,
+    "checkpoint": ".runtime/checkpoints/20260822T164116Z-route-1-water-landing-after-basculin-caught.State"
+  },
+  "confirmed_catches": [
+    {
+      "national": 504,
+      "species": "Patrat",
+      "location_area": "unova-route-1-area",
+      "source": "pc",
+      "slot": "Box 01 Slot 15",
+      "verification": "physical-save-body"
+    },
+    {
+      "national": 506,
+      "species": "Lillipup",
+      "location_area": "unova-route-1-area",
+      "source": "pc",
+      "slots": ["Box 01 Slot 16", "Box 01 Slot 17"],
+      "verification": "physical-save-bodies",
+      "note": "Two bodies cover retained Lillipup plus future Herdier; a third family body is still required for Stoutland."
+    },
+    {
+      "national": 550,
+      "species": "Basculin",
+      "location_area": "unova-route-1-area",
+      "method": "super-rod",
+      "level": 36,
+      "sex": "female",
+      "source": "pc",
+      "slot": "Box 01 Slot 20",
+      "pid": "0xD467E60E",
+      "checksum": "0x73ED",
+      "verification": "physical-save-body",
+      "save_export_sha256": "51e1a1022246cb58ca6340948b4cfeed020a9eabc7def5d8e578e11a714b1439"
+    }
+  ],
+  "inventory_cross_reference": {
+    "sources": ["save-party", "save-pc", "verified-session-catches"],
+    "selected_save_copy": 0,
+    "unique_species_owned": 12,
+    "regional_target_count": 143,
+    "combined_owned_regional_targets": 11,
+    "missing_regional_targets": 132
+  },
+  "route_decision": {
+    "route_1_remaining": [
+      {
+        "national": 531,
+        "species": "Audino",
+        "method": "rustling-grass",
+        "deferred_reason": "Shaking-grass detection is not reliable yet."
+      }
+    ],
+    "recommended_area": "dreamyard-area",
+    "recommended_targets": [
+      "Purrloin",
+      "Liepard",
+      "Pansage",
+      "Pansear",
+      "Panpour",
+      "Munna",
+      "Musharna",
+      "Audino"
+    ],
+    "travel_mode": "fly",
+    "fly_pokemon": "Unfezant",
+    "reason": "Eight reserve-aware missing targets at walking cost 4; Fly avoids uncertain route traversal."
+  }
+}

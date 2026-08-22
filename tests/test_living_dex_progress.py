@@ -24,3 +24,21 @@ def test_verified_catch_updates_session_master_inventory(tmp_path: Path) -> None
     assert catch.species_id == 504
     assert session_owned_species_ids(db_path) == {504}
     assert verified_catches(db_path)[0].ball == "Ultra Ball"
+
+
+def test_verified_catch_is_idempotent_for_same_species_and_evidence(tmp_path: Path) -> None:
+    db_path = tmp_path / "progress.sqlite3"
+    arguments = {
+        "species_id": 550,
+        "species_name": "Basculin",
+        "ball": "unknown-supervised",
+        "location_area": "unova-route-1-area",
+        "evidence_path": "verified-save.sav",
+        "db_path": db_path,
+    }
+
+    first = record_verified_catch(**arguments)
+    second = record_verified_catch(**arguments)
+
+    assert second == first
+    assert verified_catches(db_path) == (first,)

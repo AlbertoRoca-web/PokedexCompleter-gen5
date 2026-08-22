@@ -96,6 +96,7 @@ There is no required external prototype directory to migrate or maintain.
 - [`docs/supabase-persistence.md`](docs/supabase-persistence.md)
 - [`docs/voice-copilot.md`](docs/voice-copilot.md)
 - [`docs/repository-capabilities-and-live-progress.md`](docs/repository-capabilities-and-live-progress.md)
+- [`docs/supervised-autonomy-first-pass.md`](docs/supervised-autonomy-first-pass.md)
 
 ## Development
 

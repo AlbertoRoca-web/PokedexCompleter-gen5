@@ -41,6 +41,13 @@ def record_verified_catch(
     )
     with sqlite3.connect(db_path) as connection:
         _create_schema(connection)
+        existing = connection.execute(
+            "SELECT species_id, species_name, ball, location_area, evidence_path, caught_at "
+            "FROM verified_catches WHERE species_id = ? AND evidence_path = ? LIMIT 1",
+            (catch.species_id, catch.evidence_path),
+        ).fetchone()
+        if existing is not None:
+            return VerifiedCatch(*existing)
         connection.execute(
             """
             INSERT INTO verified_catches
