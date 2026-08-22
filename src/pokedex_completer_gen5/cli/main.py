@@ -11,6 +11,7 @@ from rich.console import Console
 from pokedex_completer_gen5.agents.planner import plan_next_tasks
 from pokedex_completer_gen5.agents.providers.factory import create_planner_provider
 from pokedex_completer_gen5.ai.benchmark import dry_run_model_routing
+from pokedex_completer_gen5.ai.orchestrator import OrchestrationRequest, orchestrate, orchestrator_capabilities
 from pokedex_completer_gen5.ai.router import router_payload
 from pokedex_completer_gen5.autonomy.loop import AutonomyBudget, AutonomyConfig, run_autonomy
 from pokedex_completer_gen5.backend.report_store import sha256_file, store_dex_report
@@ -177,6 +178,33 @@ def benchmark_routing(
 ) -> None:
     """Dry-run benchmark cases through the model router without calling any provider."""
     console.print_json(data={"cases": dry_run_model_routing(cases_dir)})
+
+
+@app.command("orchestrator-info")
+def orchestrator_info() -> None:
+    """Show configured LLM orchestration modes and providers without spending tokens."""
+    console.print_json(data=orchestrator_capabilities())
+
+
+@app.command("orchestrate")
+def orchestrate_prompt(
+    prompt: str = typer.Argument(..., help="Prompt for the advisory LLM orchestrator."),
+    mode: str = typer.Option("route", help="single, route, ensemble, or review."),
+    provider: str | None = typer.Option(None, help="Optional openai, anthropic, google, or compatible override."),
+    model: str | None = typer.Option(None, help="Optional model override."),
+    max_providers: int = typer.Option(3, min=1, max=3, help="Maximum ensemble providers."),
+) -> None:
+    """Run one routed or multi-provider advisory request. This can spend API money."""
+    result = orchestrate(
+        OrchestrationRequest(
+            prompt=prompt,
+            mode=mode,  # type: ignore[arg-type]
+            provider=provider,  # type: ignore[arg-type]
+            model=model,
+            max_providers=max_providers,
+        )
+    )
+    console.print_json(data=result.to_dict())
 
 
 @app.command()

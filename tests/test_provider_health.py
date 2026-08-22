@@ -13,8 +13,9 @@ def test_provider_health_reports_missing_without_values() -> None:
     payload = provider_health_payload({})
 
     assert payload["configured_count"] == 0
-    assert payload["total_count"] == 6
+    assert payload["total_count"] == 7
     assert providers(payload)["openai"]["status"] == "missing"
+    assert providers(payload)["openai-compatible"]["status"] == "missing"
 
 
 def test_provider_health_reports_configured_supabase_aliases() -> None:

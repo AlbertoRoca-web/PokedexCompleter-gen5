@@ -11,6 +11,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from pokedex_completer_gen5 import __version__
 from pokedex_completer_gen5.agents.validator_store import recent_validator_events, record_validator_event
 from pokedex_completer_gen5.agents.voice import build_voice_config, create_realtime_session
+from pokedex_completer_gen5.ai.orchestrator import (
+    OrchestrationRequest,
+    orchestrate,
+    orchestrator_capabilities,
+)
 from pokedex_completer_gen5.ai.router import router_payload
 from pokedex_completer_gen5.dex.pc_living_dex import build_pc_living_dex_report
 from pokedex_completer_gen5.emulator.artifacts import checkpoint_path, screenshot_path
@@ -186,6 +191,15 @@ class SaveReportRequest(BaseModel):
     format: Literal["json", "markdown"] = "json"
 
 
+class AiOrchestrationRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=50000)
+    mode: Literal["single", "route", "ensemble", "review"] = "route"
+    provider: Literal["openai", "anthropic", "google", "compatible"] | None = None
+    model: str | None = Field(default=None, max_length=160)
+    system_prompt: str = Field(default="", max_length=10000)
+    max_providers: int = Field(default=3, ge=1, le=3)
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard() -> str:
     return DASHBOARD_HTML
@@ -209,6 +223,39 @@ def provider_health() -> dict[str, object]:
 @app.get("/api/ai/model-router")
 def ai_model_router() -> dict[str, str | None]:
     return router_payload()
+
+
+@app.get("/api/ai/orchestrator")
+def ai_orchestrator_capabilities() -> dict[str, Any]:
+    return orchestrator_capabilities()
+
+
+@app.post("/api/ai/orchestrate")
+def ai_orchestrate(request: AiOrchestrationRequest) -> dict[str, Any]:
+    try:
+        result = orchestrate(
+            OrchestrationRequest(
+                prompt=request.prompt,
+                mode=request.mode,
+                provider=request.provider,
+                model=request.model,
+                system_prompt=request.system_prompt,
+                max_providers=request.max_providers,
+            )
+        )
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    payload = result.to_dict()
+    record_telemetry_event(
+        "ai.orchestrated",
+        {
+            "mode": result.mode,
+            "selected_provider": result.selected_provider,
+            "selected_model": result.selected_model,
+            "candidate_count": len(result.candidates),
+        },
+    )
+    return payload
 
 
 def bridge_client() -> BizHawkClient:

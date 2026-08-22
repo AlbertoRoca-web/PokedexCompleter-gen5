@@ -1,14 +1,17 @@
 [CmdletBinding()]
 param(
-    [string]$Name = "PokedexCompleterAgent"
+    [string]$Name = "PokedexCompleterAgent",
+    [switch]$NoSync
 )
 
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 Push-Location $root
 try {
-    uv sync --extra desktop
-    uv run pyinstaller `
+    if (-not $NoSync) {
+        uv sync --extra desktop
+    }
+    uv run --no-sync pyinstaller `
         --noconfirm `
         --clean `
         --onefile `

@@ -46,6 +46,12 @@ def provider_health(env: Mapping[str, str] | None = None) -> list[ProviderHealth
         EnvRequirement("openai", ("OPENAI_API_KEY",), note="LLM planner and tool-calling provider."),
         EnvRequirement("anthropic", ("ANTHROPIC_API_KEY",), note="Optional alternate LLM planner provider."),
         EnvRequirement("google", ("GOOGLE_API_KEY",), note="Optional Gemini planner or vision provider."),
+        EnvRequirement(
+            "openai-compatible",
+            ("OPENAI_COMPATIBLE_BASE_URL",),
+            optional=("OPENAI_COMPATIBLE_API_KEY",),
+            note="Optional local or alternative OpenAI-compatible model server.",
+        ),
         EnvRequirement("huggingface", ("HF_TOKEN",), note="Optional model, dataset, or Space hosting."),
         EnvRequirement("pypi", ("PYPI_API_TOKEN",), note="Manual package publishing only."),
         EnvRequirement(

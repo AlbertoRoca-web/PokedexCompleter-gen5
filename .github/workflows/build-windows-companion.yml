@@ -1,0 +1,44 @@
+name: Build Windows companion
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install desktop dependencies
+        run: uv sync --extra desktop
+
+      - name: Build one-file companion
+        shell: pwsh
+        run: ./scripts/build_local_companion.ps1
+
+      - name: Smoke test
+        shell: pwsh
+        run: ./dist/PokedexCompleterAgent.exe --scan-only
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: PokedexCompleterAgent-windows
+          path: dist/PokedexCompleterAgent.exe
+          if-no-files-found: error

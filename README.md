@@ -95,6 +95,7 @@ There is no required external prototype directory to migrate or maintain.
 - [`docs/supabase.md`](docs/supabase.md)
 - [`docs/supabase-persistence.md`](docs/supabase-persistence.md)
 - [`docs/voice-copilot.md`](docs/voice-copilot.md)
+- [`docs/repository-capabilities-and-live-progress.md`](docs/repository-capabilities-and-live-progress.md)
 
 ## Development
 
@@ -114,6 +115,8 @@ rld catchable-report "D:\path\to\POKEMON W.sav" --game white --mode direct
 rld report-living-dex "D:\path\to\POKEMON W.sav" --game white --format markdown
 rld report-living-dex "D:\path\to\POKEMON W.sav" --game white --format json
 rld provider-health
+rld orchestrator-info
+rld orchestrate "Audit the next Living Dex milestone" --mode route
 rld sync-report "D:\path\to\POKEMON W.sav" --game white
 rld plan-report report.json --provider openai
 rld serve --host 127.0.0.1 --port 8787

@@ -167,6 +167,43 @@ DASHBOARD_HTML = """<!doctype html>
   </section>
 
   <section class="card">
+    <h2>Multi-Model Orchestrator</h2>
+    <p class="muted">
+      Advisory workbench for OpenAI, Anthropic, Gemini, and OpenAI-compatible local servers.
+      Requests can spend API money. Keys stay in the backend environment and are never sent to this page.
+    </p>
+    <div class="grid">
+      <div>
+        <label for="aiMode">Mode</label>
+        <select id="aiMode">
+          <option value="route">Route one provider</option>
+          <option value="single">Single provider</option>
+          <option value="ensemble">Parallel ensemble</option>
+          <option value="review">Candidate + reviewer</option>
+        </select>
+      </div>
+      <div>
+        <label for="aiProvider">Provider override</label>
+        <select id="aiProvider">
+          <option value="">Automatic</option>
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="google">Google Gemini</option>
+          <option value="compatible">OpenAI-compatible local</option>
+        </select>
+      </div>
+    </div>
+    <label for="aiPrompt">Advisory prompt</label>
+    <textarea id="aiPrompt" rows="7" style="width:100%; box-sizing:border-box;"
+      placeholder="Audit the current Living Dex plan and propose the safest next deterministic milestone."></textarea>
+    <div class="button-row">
+      <button type="button" onclick="orchestratorInfo()">Check Providers (free)</button>
+      <button type="button" onclick="runOrchestrator()">Run Orchestrator (paid)</button>
+    </div>
+    <pre id="orchestratorOutput">No orchestration request yet.</pre>
+  </section>
+
+  <section class="card">
     <h2>Telemetry</h2>
     <p class="muted">Live-ish local event stream. WebSocket reconnect is manual for now.</p>
     <button type="button" onclick="telemetryFetch()">Fetch Telemetry</button>
@@ -491,6 +528,29 @@ async function macroReliabilityFetch() {
   await apiToPre('/api/emulator/macro/feedback', { method: 'GET' }, 'visualizerOutput');
 }
 
+async function orchestratorInfo() {
+  await apiToPre('/api/ai/orchestrator', { method: 'GET' }, 'orchestratorOutput');
+}
+
+async function runOrchestrator() {
+  const prompt = document.getElementById('aiPrompt').value.trim();
+  if (!prompt) {
+    document.getElementById('orchestratorOutput').textContent = 'Enter a prompt first.';
+    return;
+  }
+  const provider = document.getElementById('aiProvider').value || null;
+  await apiToPre('/api/ai/orchestrate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt,
+      mode: document.getElementById('aiMode').value,
+      provider,
+      max_providers: 3
+    })
+  }, 'orchestratorOutput');
+}
+
 let telemetrySocket = null;
 
 function connectTelemetry() {
@@ -611,7 +671,9 @@ function currentUiState() {
     scope: document.getElementById('scope').value,
     target_policy: document.getElementById('targetPolicy').value,
     include_party: document.getElementById('includeParty').checked,
-    voice_mode: document.getElementById('voiceMode').value
+    voice_mode: document.getElementById('voiceMode').value,
+    ai_mode: document.getElementById('aiMode').value,
+    ai_provider: document.getElementById('aiProvider').value || 'automatic'
   };
 }
 

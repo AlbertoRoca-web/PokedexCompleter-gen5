@@ -1,0 +1,59 @@
+name: LLM orchestrator smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_live:
+        description: "Spend provider tokens on one routed smoke request"
+        required: true
+        default: false
+        type: boolean
+      provider:
+        description: "Provider for the optional live request"
+        required: true
+        default: openai
+        type: choice
+        options:
+          - openai
+          - anthropic
+          - google
+
+permissions:
+  contents: read
+
+jobs:
+  orchestrator-smoke:
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install project with AI providers
+        run: uv sync --extra ai --extra dev
+
+      - name: Free capability check
+        run: uv run rld orchestrator-info
+
+      - name: Unit tests
+        run: uv run pytest -q tests/test_ai_orchestrator.py tests/test_rest_api.py
+
+      - name: Optional paid live smoke
+        if: ${{ inputs.run_live }}
+        run: >-
+          uv run rld orchestrate
+          "Return one sentence confirming advisory-only Living Dex planning."
+          --mode single
+          --provider "${{ inputs.provider }}"
