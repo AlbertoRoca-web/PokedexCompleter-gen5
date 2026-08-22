@@ -54,25 +54,55 @@
   "route_decision": {
     "route_1_remaining": [
       {
+        "national": 349,
+        "species": "Feebas",
+        "method": "super-rod",
+        "chance": 5,
+        "next_target": true
+      },
+      {
+        "national": 350,
+        "species": "Milotic",
+        "method": "rippling-fishing",
+        "chance": 5,
+        "deferred_reason": "Requires detecting and casting into an active rippling-water tile."
+      },
+      {
         "national": 531,
         "species": "Audino",
         "method": "rustling-grass",
         "deferred_reason": "Shaking-grass detection is not reliable yet."
+      },
+      {
+        "national": 507,
+        "species": "Herdier",
+        "method": "dark-grass",
+        "chance": 39,
+        "note": "Two Lillipup bodies can cover Lillipup and Herdier by evolution; a third family body is still needed for Stoutland."
+      },
+      {
+        "national": 559,
+        "species": "Scraggy",
+        "method": "dark-grass",
+        "chance": 25
+      },
+      {
+        "national": 83,
+        "species": "Farfetchd",
+        "method": "swarm-grass",
+        "chance": 40,
+        "deferred_reason": "Available only when Route 1 is the current daily swarm."
       }
     ],
-    "recommended_area": "dreamyard-area",
-    "recommended_targets": [
-      "Purrloin",
-      "Liepard",
-      "Pansage",
-      "Pansear",
-      "Panpour",
-      "Munna",
-      "Musharna",
-      "Audino"
-    ],
-    "travel_mode": "fly",
+    "recommended_area": "unova-route-1-area",
+    "recommended_targets": ["Feebas"],
+    "deferred_next_route": {
+      "area": "dreamyard-area",
+      "fly_anchor": "Striaton City",
+      "targets": ["Purrloin", "Liepard", "Pansage", "Pansear", "Panpour", "Munna", "Musharna", "Audino"]
+    },
+    "travel_mode": "stay-current-route",
     "fly_pokemon": "Unfezant",
-    "reason": "Eight reserve-aware missing targets at walking cost 4; Fly avoids uncertain route traversal."
+    "reason": "Finish ordinary-water Feebas at the verified fishing bank before leaving Route 1; defer phenomenon/swarm targets until detectors are reliable."
   }
 }

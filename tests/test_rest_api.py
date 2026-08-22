@@ -286,3 +286,23 @@ def test_emulator_press_endpoint_uses_bridge_client(monkeypatch: pytest.MonkeyPa
     )
     assert sequence_response.status_code == 200
     assert sequence_response.json() == {"ok": True, "buttons": ["A", "B"], "frames": 2, "gap_frames": 3}
+
+
+def test_emulator_touch_endpoint_uses_bridge_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, dict[str, object] | None]] = []
+
+    def fake_bridge_request(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+        calls.append((method, params))
+        return {"ok": True, "method": method, **(params or {})}
+
+    monkeypatch.setattr("pokedex_completer_gen5.server.rest.bridge_request", fake_bridge_request)
+    response = TestClient(app).post("/api/emulator/touch", json={"x": 42, "y": 99, "frames": 2})
+
+    assert response.status_code == 200
+    assert calls == [("touch", {"x": 42, "y": 99, "frames": 2})]
+
+
+def test_emulator_touch_endpoint_validates_ds_coordinates() -> None:
+    response = TestClient(app).post("/api/emulator/touch", json={"x": 256, "y": 256})
+
+    assert response.status_code == 422

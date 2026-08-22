@@ -66,6 +66,9 @@ class BizHawkClient:
     def press(self, button: str, frames: int = 1) -> dict[str, Any]:
         return self.request("press", {"button": button, "frames": frames})
 
+    def touch(self, x: int, y: int, frames: int = 1) -> dict[str, Any]:
+        return self.request("touch", {"x": x, "y": y, "frames": frames})
+
     def press_sequence(self, buttons: list[str], frames: int = 1, gap_frames: int = 1) -> dict[str, Any]:
         return self.request(
             "press_sequence",

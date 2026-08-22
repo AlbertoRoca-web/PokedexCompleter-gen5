@@ -82,6 +82,12 @@ class EmulatorPressRequest(BaseModel):
     frames: int = Field(default=1, ge=1, le=120)
 
 
+class EmulatorTouchRequest(BaseModel):
+    x: int = Field(ge=0, le=255)
+    y: int = Field(ge=0, le=255, description="BizHawk NDS touch Y analog coordinate; 0-255 scales to 0-191 pixels.")
+    frames: int = Field(default=1, ge=1, le=60)
+
+
 class EmulatorPressSequenceRequest(BaseModel):
     buttons: list[str] = Field(min_length=1, max_length=50)
     frames: int = Field(default=1, ge=1, le=120)
@@ -311,7 +317,7 @@ def _parse_memory_changes(changes_csv: str) -> list[dict[str, int | str]]:
     return changes
 
 
-def bridge_error(event_type: str, exc: BizHawkBridgeError) -> HTTPException:
+def bridge_error(event_type: str, exc: BizHawkBridgeError | NativeBridgeError) -> HTTPException:
     payload = {
         "error": str(exc),
         "hint": "Launch from the website, then click Diagnose Bridge. Native comm bridge should use port 8766.",
@@ -448,6 +454,15 @@ def emulator_press(request: EmulatorPressRequest) -> dict[str, Any]:
         )
     except BizHawkBridgeError as exc:
         raise bridge_error("emulator.press.error", exc) from exc
+
+
+@app.post("/api/emulator/touch")
+def emulator_touch(request: EmulatorTouchRequest) -> dict[str, Any]:
+    try:
+        payload = bridge_request("touch", {"x": request.x, "y": request.y, "frames": request.frames})
+        return bridge_response("emulator.touch", payload)
+    except (BizHawkBridgeError, NativeBridgeError) as exc:
+        raise bridge_error("emulator.touch.error", exc) from exc
 
 
 @app.post("/api/emulator/press-sequence")

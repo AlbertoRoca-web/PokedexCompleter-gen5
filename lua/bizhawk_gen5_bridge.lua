@@ -3,7 +3,7 @@
 -- Load this in BizHawk while running a Gen 5 DS game with the melonDS core.
 -- This is still a scaffold: Pokemon-specific memory addresses are not wired yet.
 
-local BRIDGE_VERSION = "0.2.0"
+local BRIDGE_VERSION = "0.3.0"
 local HOST = "127.0.0.1"
 local PORT = 8765
 local DEFAULT_SPEED_PERCENT = 400
@@ -109,6 +109,18 @@ local function press_button(button, frames)
         emu.frameadvance()
     end
     return json_object({ ok = true, method = "press", button = button, frames = frames })
+end
+
+local function touch_screen(x, y, frames)
+    x = math.max(0, math.min(255, tonumber(x) or 0))
+    y = math.max(0, math.min(255, tonumber(y) or 0))
+    frames = math.max(1, tonumber(frames) or 1)
+    for _ = 1, frames do
+        joypad.set({ ["Touch X"] = x, ["Touch Y"] = y, ["Touch"] = true })
+        emu.frameadvance()
+    end
+    joypad.set({})
+    return json_object({ ok = true, method = "touch", x = x, y = y, frames = frames })
 end
 
 local function press_sequence(buttons_csv, frames, gap_frames)
@@ -325,6 +337,12 @@ local function handle_request(payload)
         local button = extract_string(payload, "button", "A")
         local frames = extract_number(payload, "frames", 1)
         response = press_button(button, frames)
+    elseif method == "touch" then
+        response = touch_screen(
+            extract_number(payload, "x", 0),
+            extract_number(payload, "y", 0),
+            extract_number(payload, "frames", 1)
+        )
     elseif method == "press_sequence" then
         local buttons_csv = extract_string(payload, "buttons_csv", "")
         local frames = extract_number(payload, "frames", 1)

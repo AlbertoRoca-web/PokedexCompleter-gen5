@@ -19,9 +19,9 @@
     {"species": "Basculin", "form": "red-striped", "national": 550, "method": "rippling-surf", "levels": [5, 20], "chance": 100},
     {"species": "Feebas", "national": 349, "method": "super-rod", "levels": [35, 55], "chance": 5},
     {"species": "Basculin", "form": "blue-striped", "national": 550, "method": "super-rod", "levels": [35, 55], "chance": 95},
-    {"species": "Feebas", "national": 349, "method": "rippling-fishing", "levels": [35, 60], "chance": 40},
+    {"species": "Feebas", "national": 349, "method": "rippling-fishing", "levels": [35, 60], "chance": 60},
     {"species": "Milotic", "national": 350, "method": "rippling-fishing", "levels": [45, 70], "chance": 5},
-    {"species": "Basculin", "form": "red-striped", "national": 550, "method": "rippling-fishing", "levels": [35, 70], "chance": 55},
+    {"species": "Basculin", "form": "red-striped", "national": 550, "method": "rippling-fishing", "levels": [35, 70], "chance": 35},
     {"species": "Farfetchd", "national": 83, "method": "swarm-grass", "levels": [15, 55], "chance": 40}
   ]
 }

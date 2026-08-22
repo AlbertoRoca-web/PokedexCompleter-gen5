@@ -97,6 +97,7 @@ There is no required external prototype directory to migrate or maintain.
 - [`docs/voice-copilot.md`](docs/voice-copilot.md)
 - [`docs/repository-capabilities-and-live-progress.md`](docs/repository-capabilities-and-live-progress.md)
 - [`docs/supervised-autonomy-first-pass.md`](docs/supervised-autonomy-first-pass.md)
+- [`docs/white-route-1-encounter-completion.md`](docs/white-route-1-encounter-completion.md)
 
 ## Development
 
