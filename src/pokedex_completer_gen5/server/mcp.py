@@ -8,6 +8,7 @@ from pokedex_completer_gen5.application.service import service
 from pokedex_completer_gen5.autonomy.capture_protocol import post_capture_save_protocol
 from pokedex_completer_gen5.dex.catch_legality import CatchContext, choose_legal_ball
 from pokedex_completer_gen5.dex.encounter_policy import decide_encounter
+from pokedex_completer_gen5.dex.nickname_generator import generate_safe_nickname
 from pokedex_completer_gen5.dex.route_target_planner import build_route_target_plan
 from pokedex_completer_gen5.persistence.living_dex_progress import (
     build_master_route_cross_reference,
@@ -128,6 +129,14 @@ TOOL_SPECS: tuple[McpToolSpec, ...] = (
         },
     ),
     McpToolSpec(
+        name="pokemon.generate_safe_nickname",
+        description="Generate a fun ASCII nickname within Gen 5 length limits for PKHeX/HOME-safe use.",
+        input_schema={
+            "type": "object",
+            "properties": {"seed": {"type": ["integer", "string", "null"]}},
+        },
+    ),
+    McpToolSpec(
         name="pokemon.get_post_capture_protocol",
         description="Return the mandatory save-and-refresh loop performed after every verified capture.",
         input_schema={"type": "object", "properties": {}},
@@ -217,6 +226,8 @@ def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             fly_available=bool(arguments.get("fly_available", True)),
             limit=int(arguments.get("limit", 20)),
         )
+    if name == "pokemon.generate_safe_nickname":
+        return {"nickname": generate_safe_nickname(seed=arguments.get("seed")), "home_safe": True}
     if name == "pokemon.get_post_capture_protocol":
         return post_capture_save_protocol()
     if name == "pokemon.get_macro_reliability":
