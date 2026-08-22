@@ -8,6 +8,8 @@ from pathlib import Path
 
 import httpx
 
+from pokedex_completer_gen5.saveio.gen5_save import build_save_payload
+
 DEFAULT_SIZE = 512 * 1024
 DEFAULT_CHUNK_SIZE = 32 * 1024
 
@@ -36,12 +38,21 @@ def main() -> int:
     temporary = output.with_suffix(output.suffix + ".tmp")
     temporary.write_bytes(data)
     temporary.replace(output)
+    save_payload = build_save_payload(output, "white", "auto")
+    dex_status = save_payload.get("dex_status")
+    if not isinstance(dex_status, dict):
+        dex_status = {}
     payload = {
         "ok": True,
+        "transfer_ready": True,
         "output_path": str(output.resolve()),
         "size": len(data),
         "sha256": hashlib.sha256(data).hexdigest(),
         "consistency": "two consecutive SRAM reads matched",
+        "game_profile": save_payload.get("game_profile"),
+        "selected_copy": save_payload.get("selected_copy"),
+        "unique_species_owned": dex_status.get("unique_species_owned"),
+        "usage": "Transfer this raw .sav with FileZilla and inject it using your 2DS save manager.",
     }
     print(json.dumps(payload, indent=2))
     return 0
@@ -83,7 +94,7 @@ def _read_sram(client: httpx.Client, *, size: int, chunk_size: int) -> bytes:
 
 def _default_output_path() -> Path:
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    return Path(".runtime/live-saves") / f"{timestamp}-pokemon-white-live.sav"
+    return Path(".runtime/cartridge-exports") / f"pokemon-white-live-{timestamp}.sav"
 
 
 if __name__ == "__main__":
